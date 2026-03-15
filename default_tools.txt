@@ -1,0 +1,4 @@
+'/Users/scottquach/Documents/My Vault synced'
+
+
+claude --model haiku --add-dir '/Users/scottquach/Documents/My Vault synced' -p "Review my latest weekly note for insights"
