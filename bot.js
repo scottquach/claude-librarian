@@ -197,10 +197,11 @@ function createCommandHandler({
         const rawPrompt = getCommandPrompt(ctx.message?.text ?? '', commandName, defaultPrompt);
 
         const now = new Date();
-        const today = now.toISOString().slice(0, 10);
+        const localDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const today = localDate(now);
         const weekStart = new Date(now);
         weekStart.setDate(now.getDate() - now.getDay());
-        const weekStartStr = weekStart.toISOString().slice(0, 10);
+        const weekStartStr = localDate(weekStart);
         const jan1 = new Date(weekStart.getFullYear(), 0, 1);
         const weekNum = Math.ceil(((weekStart - jan1) / 86400000 + jan1.getDay() + 1) / 7);
         const prompt = `[Context: today is ${today}, current week starts ${weekStartStr}, week number ${weekNum}]\n\n${rawPrompt}`;

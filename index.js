@@ -1,3 +1,4 @@
+require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const { join } = require('node:path');
 const { createBotFromDirectory } = require('./src/bot-factory');
