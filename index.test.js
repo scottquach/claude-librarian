@@ -9,13 +9,10 @@ const {
   createClaudeCommandRunner,
   createClaudeConversationStore,
   createCommandHandler,
-  createClaudeSessionStore,
 } = require('./bot');
 
 function withTempStorage(runTest) {
   const tempDirectory = mkdtempSync(join(tmpdir(), 'telegram-bot-test-'));
-  const sessionFilePath = join(tempDirectory, 'claude-sessions.json');
-  const sessionStore = createClaudeSessionStore({ sessionFilePath });
   const conversationDirectoryPath = join(tempDirectory, 'conversations');
   const conversationStore = createClaudeConversationStore({ conversationDirectoryPath });
 
@@ -23,8 +20,6 @@ function withTempStorage(runTest) {
     .then(() => runTest({
       conversationDirectoryPath,
       conversationStore,
-      sessionFilePath,
-      sessionStore,
     }))
     .finally(() => {
       rmSync(tempDirectory, { force: true, recursive: true });
@@ -32,7 +27,7 @@ function withTempStorage(runTest) {
 }
 
 test('replies with Claude CLI output when the journal command is called', async () => {
-  await withTempStorage(async ({ conversationStore, sessionStore }) => {
+  await withTempStorage(async ({ conversationStore }) => {
     const replies = [];
     const ctx = {
       reply(message) {
@@ -40,12 +35,11 @@ test('replies with Claude CLI output when the journal command is called', async 
         return Promise.resolve();
       },
     };
-    const runClaudeCommand = async () => 'hello from claude';
+    const runClaudeCommand = async () => ({ output: 'hello from claude', sessionId: 'test-session' });
 
     const handleJournalCommand = createCommandHandler({
       conversationStore,
       runClaudeCommand,
-      sessionStore,
       commandName: 'journal',
       defaultPrompt: 'Review my latest weekly note for insights',
       botName: 'journal',
@@ -59,7 +53,7 @@ test('replies with Claude CLI output when the journal command is called', async 
 });
 
 test('replies with a failure message when the journal Claude CLI command errors', async () => {
-  await withTempStorage(async ({ conversationStore, sessionStore }) => {
+  await withTempStorage(async ({ conversationStore }) => {
     const replies = [];
     const ctx = {
       reply(message) {
@@ -74,7 +68,6 @@ test('replies with a failure message when the journal Claude CLI command errors'
     const handleJournalCommand = createCommandHandler({
       conversationStore,
       runClaudeCommand,
-      sessionStore,
       commandName: 'journal',
       defaultPrompt: 'Review my latest weekly note for insights',
       botName: 'journal',
@@ -88,7 +81,7 @@ test('replies with a failure message when the journal Claude CLI command errors'
 });
 
 test('starts a new Claude session when the journal command is called', async () => {
-  await withTempStorage(async ({ conversationStore, sessionStore }) => {
+  await withTempStorage(async ({ conversationStore }) => {
     const replies = [];
     const runCalls = [];
     const ctx = {
@@ -100,14 +93,12 @@ test('starts a new Claude session when the journal command is called', async () 
     };
     const runClaudeCommand = async (options) => {
       runCalls.push(options);
-      return 'hello from claude';
+      return { output: 'hello from claude', sessionId: 'session-456' };
     };
 
     const handleJournalCommand = createCommandHandler({
       conversationStore,
       runClaudeCommand,
-      sessionStore,
-      createSessionId: () => 'session-456',
       commandName: 'journal',
       defaultPrompt: 'Review my latest weekly note for insights',
       botName: 'journal',
@@ -116,20 +107,15 @@ test('starts a new Claude session when the journal command is called', async () 
 
     await handleJournalCommand(ctx);
 
-    assert.deepEqual(runCalls, [
-      {
-        prompt: 'Review my latest weekly note for insights',
-        sessionId: 'session-456',
-        resume: false,
-      },
-    ]);
-    assert.equal(sessionStore.get('1:journal'), 'session-456');
+    assert.equal(runCalls.length, 1);
+    assert.match(runCalls[0].prompt, /^\[Context:.*\]\n\nReview my latest weekly note for insights$/s);
+    assert.equal(runCalls[0].resume, false);
     assert.deepEqual(replies, ['hello from claude']);
   });
 });
 
 test('passes the journal command text to Claude as the prompt', async () => {
-  await withTempStorage(async ({ conversationStore, sessionStore }) => {
+  await withTempStorage(async ({ conversationStore }) => {
     const replies = [];
     const runCalls = [];
     const ctx = {
@@ -142,14 +128,12 @@ test('passes the journal command text to Claude as the prompt', async () => {
     };
     const runClaudeCommand = async (options) => {
       runCalls.push(options);
-      return 'hello from claude';
+      return { output: 'hello from claude', sessionId: 'session-789' };
     };
 
     const handleJournalCommand = createCommandHandler({
       conversationStore,
       runClaudeCommand,
-      sessionStore,
-      createSessionId: () => 'session-789',
       commandName: 'journal',
       defaultPrompt: 'Review my latest weekly note for insights',
       botName: 'journal',
@@ -158,35 +142,15 @@ test('passes the journal command text to Claude as the prompt', async () => {
 
     await handleJournalCommand(ctx);
 
-    assert.deepEqual(runCalls, [
-      {
-        prompt: 'summarize the latest note',
-        sessionId: 'session-789',
-        resume: false,
-      },
-    ]);
+    assert.equal(runCalls.length, 1);
+    assert.match(runCalls[0].prompt, /^\[Context:.*\]\n\nsummarize the latest note$/s);
+    assert.equal(runCalls[0].resume, false);
     assert.deepEqual(replies, ['hello from claude']);
   });
 });
 
-test('persists Claude sessions to a JSON file', async () => {
-  const tempDirectory = mkdtempSync(join(tmpdir(), 'telegram-bot-test-'));
-  const sessionFilePath = join(tempDirectory, 'claude-sessions.json');
-
-  try {
-    const sessionStore = createClaudeSessionStore({ sessionFilePath });
-    sessionStore.set('1', 'session-123');
-
-    const reloadedSessionStore = createClaudeSessionStore({ sessionFilePath });
-
-    assert.equal(reloadedSessionStore.get('1'), 'session-123');
-  } finally {
-    rmSync(tempDirectory, { force: true, recursive: true });
-  }
-});
-
 test('stores session conversations as XML in the conversations folder', async () => {
-  await withTempStorage(async ({ conversationDirectoryPath, conversationStore, sessionStore }) => {
+  await withTempStorage(async ({ conversationDirectoryPath, conversationStore }) => {
     const ctx = {
       chat: { id: 1 },
       message: { text: '/journal summarize <this> & that' },
@@ -196,9 +160,7 @@ test('stores session conversations as XML in the conversations folder', async ()
     };
     const handleJournalCommand = createCommandHandler({
       conversationStore,
-      runClaudeCommand: async () => 'assistant says <ok> & "done"',
-      sessionStore,
-      createSessionId: () => 'session-xml',
+      runClaudeCommand: async () => ({ output: 'assistant says <ok> & "done"', sessionId: 'session-xml' }),
       commandName: 'journal',
       defaultPrompt: 'Review my latest weekly note for insights',
       botName: 'journal',
@@ -209,15 +171,10 @@ test('stores session conversations as XML in the conversations folder', async ()
 
     const transcript = readFileSync(join(conversationDirectoryPath, 'session-xml.xml'), 'utf8');
 
-    assert.equal(
-      transcript,
-      [
-        '<conversation session-id="session-xml">',
-        '  <user>summarize &lt;this&gt; &amp; that</user>',
-        '  <assistant>assistant says &lt;ok&gt; &amp; &quot;done&quot;</assistant>',
-        '</conversation>',
-      ].join('\n'),
-    );
+    assert.match(transcript, /^<conversation session-id="session-xml">/);
+    assert.match(transcript, /summarize &lt;this&gt; &amp; that<\/user>/);
+    assert.match(transcript, /^\s+<assistant>assistant says &lt;ok&gt; &amp; &quot;done&quot;<\/assistant>/m);
+    assert.match(transcript, /<\/conversation>$/);
   });
 });
 
@@ -233,7 +190,7 @@ test('runs the Claude CLI with inherited stdin and returns stdout', async () => 
     spawnArgs = { command, args, options };
 
     process.nextTick(() => {
-      stdout.emit('data', Buffer.from('hello from claude\n'));
+      stdout.emit('data', Buffer.from('{"type":"result","result":"hello from claude","session_id":"test-uuid"}\n'));
       child.emit('close', 0, null);
     });
 
@@ -248,16 +205,17 @@ test('runs the Claude CLI with inherited stdin and returns stdout', async () => 
     directories: ['/Users/scottquach/Documents/My Vault synced'],
   });
 
-  const output = await runClaudeCommand({
+  const result = await runClaudeCommand({
     prompt: 'Review my latest weekly note for insights',
   });
 
-  assert.equal(output, 'hello from claude');
+  assert.deepEqual(result, { output: 'hello from claude', sessionId: 'test-uuid' });
   assert.equal(spawnArgs.command, 'claude');
   assert.deepEqual(spawnArgs.args, [
     '--model', 'haiku',
-    '--allowed-tools', 'Read,Edit',
     '--add-dir', '/Users/scottquach/Documents/My Vault synced',
+    '--allowed-tools', 'Read,Edit',
+    '--output-format', 'json',
     '-p', 'Review my latest weekly note for insights',
   ]);
   assert.deepEqual(spawnArgs.options.stdio, ['inherit', 'pipe', 'pipe']);

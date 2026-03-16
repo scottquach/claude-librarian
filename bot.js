@@ -1,83 +1,8 @@
 const { spawn } = require('node:child_process');
-const { randomUUID } = require('node:crypto');
 const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');
 const { dirname, join } = require('node:path');
 
-const CLAUDE_SESSION_STORE_PATH = join(__dirname, 'claude-sessions.json');
 const CLAUDE_CONVERSATION_DIRECTORY_PATH = join(__dirname, 'conversations');
-
-function getChatSessionKey(ctx, botName) {
-    const chatId = String(ctx.chat?.id ?? 'global');
-    return botName ? `${chatId}:${botName}` : chatId;
-}
-
-function readSessionState({ sessionFilePath, readFile = readFileSync }) {
-    try {
-        const fileContents = readFile(sessionFilePath, 'utf8');
-        const parsedState = JSON.parse(fileContents);
-
-        if (!parsedState || typeof parsedState !== 'object' || Array.isArray(parsedState)) {
-            return {};
-        }
-
-        return parsedState;
-    } catch (error) {
-        if (error.code === 'ENOENT') {
-            return {};
-        }
-
-        throw error;
-    }
-}
-
-function writeSessionState({
-    sessionFilePath,
-    sessionIdsByChat,
-    createDirectory = mkdirSync,
-    writeFile = writeFileSync,
-}) {
-    createDirectory(dirname(sessionFilePath), { recursive: true });
-    writeFile(
-        sessionFilePath,
-        JSON.stringify(Object.fromEntries(sessionIdsByChat), null, 2),
-        'utf8',
-    );
-}
-
-function createClaudeSessionStore({
-    sessionFilePath = CLAUDE_SESSION_STORE_PATH,
-    readFile = readFileSync,
-    writeFile = writeFileSync,
-    createDirectory = mkdirSync,
-} = {}) {
-    const sessionIdsByChat = new Map(
-        Object.entries(readSessionState({ sessionFilePath, readFile })),
-    );
-
-    return {
-        get(chatSessionKey) {
-            return sessionIdsByChat.get(chatSessionKey);
-        },
-        set(chatSessionKey, sessionId) {
-            sessionIdsByChat.set(chatSessionKey, sessionId);
-            writeSessionState({
-                sessionFilePath,
-                sessionIdsByChat,
-                createDirectory,
-                writeFile,
-            });
-        },
-        clear(chatSessionKey) {
-            sessionIdsByChat.delete(chatSessionKey);
-            writeSessionState({
-                sessionFilePath,
-                sessionIdsByChat,
-                createDirectory,
-                writeFile,
-            });
-        },
-    };
-}
 
 function escapeXml(value = '') {
     return String(value)
@@ -187,24 +112,24 @@ function createClaudeCommandRunner({
     directories = [],
     systemPrompt = '',
 } = {}) {
-    function buildArgs({ prompt, sessionId, resume = false }) {
+    const toolsArg = tools.join(',');
+
+    function buildArgs({ prompt, resume = false }) {
         const args = [];
         if (!resume) {
             args.push('--model', model);
-            if (tools.length) args.push('--allowed-tools', tools.join(','));
             for (const dir of directories) args.push('--add-dir', dir);
             if (systemPrompt) args.push('--system-prompt', systemPrompt);
         }
-        if (resume && tools.length) args.push('--allowed-tools', tools.join(','));
-        if (sessionId) {
-            args.push(resume ? '--resume' : '--session-id', sessionId);
-        }
+        if (tools.length) args.push('--allowed-tools', toolsArg);
+        if (resume) args.push('--continue');
+        args.push('--output-format', 'json');
         args.push('-p', prompt);
         return args;
     }
 
-    return function runClaudeCommand({ prompt = '', sessionId, resume = false } = {}) {
-        const args = buildArgs({ prompt, sessionId, resume });
+    return function runClaudeCommand({ prompt = '', resume = false } = {}) {
+        const args = buildArgs({ prompt, resume });
         return new Promise((resolve, reject) => {
             const child = spawnCommand('claude', args, {
                 env: process.env,
@@ -244,8 +169,12 @@ function createClaudeCommandRunner({
                     return;
                 }
 
-                const output = stdout.trim() || stderr.trim();
-                resolve(output || 'Claude command completed without output.');
+                try {
+                    const parsed = JSON.parse(stdout.trim());
+                    resolve({ output: parsed.result ?? '', sessionId: parsed.session_id ?? '' });
+                } catch {
+                    resolve({ output: stdout.trim() || stderr.trim() || 'Claude command completed without output.', sessionId: '' });
+                }
             });
         });
     };
@@ -256,30 +185,15 @@ function createCommandHandler({
     defaultPrompt,
     conversationStore = createClaudeConversationStore(),
     runClaudeCommand,
-    sessionStore = createClaudeSessionStore(),
-    sessionIsolation = 'perCommand',
-    createSessionId = randomUUID,
     botName = 'default',
     activeBotMap = new Map(),
 }) {
     return async function handleCommand(ctx) {
-        const chatSessionKey = getChatSessionKey(ctx, botName);
         const chatId = String(ctx.chat?.id ?? 'global');
         const username = ctx.from?.username ?? ctx.from?.id ?? 'unknown';
 
         console.log(`[command] /${commandName} received from user=${username} chatId=${chatId}`);
 
-        let sessionId;
-        const existingSessionId = sessionStore.get(chatSessionKey);
-        if (sessionIsolation === 'shared' && existingSessionId) {
-            sessionId = existingSessionId;
-            console.log(`[session] resuming existing session sessionId=${sessionId} chatSessionKey=${chatSessionKey}`);
-        } else {
-            sessionId = createSessionId();
-            console.log(`[session] created new session sessionId=${sessionId} chatSessionKey=${chatSessionKey}`);
-        }
-
-        const resume = sessionIsolation === 'shared' && !!existingSessionId;
         const rawPrompt = getCommandPrompt(ctx.message?.text ?? '', commandName, defaultPrompt);
 
         const now = new Date();
@@ -291,20 +205,17 @@ function createCommandHandler({
         const weekNum = Math.ceil(((weekStart - jan1) / 86400000 + jan1.getDay() + 1) / 7);
         const prompt = `[Context: today is ${today}, current week starts ${weekStartStr}, week number ${weekNum}]\n\n${rawPrompt}`;
 
-        console.log(`[claude] running command prompt="${prompt.slice(0, 100)}${prompt.length > 100 ? '...' : ''}" resume=${resume}`);
+        console.log(`[claude] running command prompt="${prompt.slice(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
 
         try {
-            const output = await runClaudeCommand({ prompt, sessionId, resume });
+            const { output, sessionId } = await runClaudeCommand({ prompt, resume: false });
             console.log(`[claude] command succeeded sessionId=${sessionId} outputLength=${output.length}`);
-            sessionStore.set(chatSessionKey, sessionId);
             activeBotMap.set(chatId, botName);
             conversationStore.appendExchange({ assistantMessage: output, sessionId, userMessage: prompt });
             await ctx.reply(output, { parse_mode: 'HTML' });
         } catch (error) {
-            console.error(`[claude] command failed sessionId=${sessionId} error=${error.message}`);
-            const failureMessage = 'Claude command failed: ' + error.message;
-            conversationStore.appendExchange({ assistantMessage: failureMessage, sessionId, userMessage: prompt });
-            await ctx.reply(failureMessage);
+            console.error(`[claude] command failed error=${error.message}`);
+            await ctx.reply('Claude command failed: ' + error.message);
         }
     };
 }
@@ -313,7 +224,5 @@ module.exports = {
     createClaudeCommandRunner,
     createClaudeConversationStore,
     createCommandHandler,
-    createClaudeSessionStore,
-    getChatSessionKey,
     getCommandPrompt,
 };

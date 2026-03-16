@@ -1,6 +1,7 @@
 // src/bot-config-loader.js
 const { readFileSync, readdirSync: fsReaddirSync } = require('node:fs');
 const { dirname, join } = require('node:path');
+const { parse: parseYamlDoc } = require('yaml');
 
 function parseFrontmatter(fileContent) {
   if (!fileContent.startsWith('---\n') && !fileContent.startsWith('---\r\n')) {
@@ -14,74 +15,8 @@ function parseFrontmatter(fileContent) {
   const yamlBlock = withoutOpening.slice(0, closingIdx);
   const body = withoutOpening.slice(closingIdx).replace(/^\n---\r?\n/, '').trim();
 
-  const frontmatter = parseYaml(yamlBlock);
+  const frontmatter = parseYamlDoc(yamlBlock);
   return { frontmatter, body };
-}
-
-function parseYaml(yaml) {
-  const result = {};
-  const lines = yaml.split('\n');
-  let i = 0;
-
-  while (i < lines.length) {
-    const line = lines[i];
-
-    // Top-level scalar: "key: value"
-    const scalarMatch = line.match(/^(\w[\w-]*)\s*:\s*(.+)$/);
-    if (scalarMatch) {
-      const [, key, rawVal] = scalarMatch;
-      const num = Number(rawVal);
-      result[key] = isNaN(num) || rawVal.trim() === '' ? rawVal.trim() : num;
-      i++;
-      continue;
-    }
-
-    // Top-level block: "key:"
-    const blockMatch = line.match(/^(\w[\w-]*)\s*:\s*$/);
-    if (blockMatch) {
-      const [, key] = blockMatch;
-      i++;
-      const items = [];
-
-      while (i < lines.length && lines[i].match(/^\s+/)) {
-        // Sub-object item starting with "  - key: value" (inline) or "  -" (bare dash)
-        const inlineObjMatch = lines[i].match(/^(\s+)-\s+(\w[\w-]*)\s*:\s*(.*)$/);
-        const bareDashMatch = lines[i].match(/^\s+-\s*$/);
-
-        if (inlineObjMatch || bareDashMatch) {
-          const obj = {};
-          if (inlineObjMatch) {
-            obj[inlineObjMatch[2]] = inlineObjMatch[3].trim();
-          }
-          i++;
-          // Read continuation properties (deeper indent)
-          while (i < lines.length && lines[i].match(/^\s{4,}/)) {
-            const propMatch = lines[i].match(/^\s+(\w[\w-]*)\s*:\s*(.+)$/);
-            if (propMatch) obj[propMatch[1]] = propMatch[2].trim();
-            i++;
-          }
-          items.push(obj);
-          continue;
-        }
-
-        // Scalar list item: "  - value"
-        const listItemMatch = lines[i].match(/^\s+-\s+(.+)$/);
-        if (listItemMatch) {
-          items.push(listItemMatch[1].trim());
-          i++;
-          continue;
-        }
-
-        i++;
-      }
-      result[key] = items;
-      continue;
-    }
-
-    i++;
-  }
-
-  return result;
 }
 
 function normalizeBotConfig(raw, body, configDir) {

@@ -3,12 +3,11 @@ const { message } = require('telegraf/filters');
 const {
   createClaudeCommandRunner,
   createCommandHandler,
-  createClaudeSessionStore,
   createClaudeConversationStore,
 } = require('../bot');
 const { loadAllBotConfigs: defaultLoadAllBotConfigs } = require('./bot-config-loader');
 
-function createMultiBotTextMessageHandler({ activeBotMap, botRunnerMap, conversationStore, sessionStore }) {
+function createMultiBotTextMessageHandler({ activeBotMap, botRunnerMap, conversationStore }) {
   return async function handleTextMessage(ctx) {
     const chatId = String(ctx.chat?.id ?? 'global');
     const username = ctx.from?.username ?? ctx.from?.id ?? 'unknown';
@@ -21,34 +20,23 @@ function createMultiBotTextMessageHandler({ activeBotMap, botRunnerMap, conversa
       return;
     }
 
-    const chatSessionKey = `${chatId}:${botName}`;
-    const sessionId = sessionStore.get(chatSessionKey);
-
-    if (!sessionId) {
-      console.log(`[session] no session found for chatSessionKey=${chatSessionKey}, echoing message`);
-      await ctx.reply('You said: ' + ctx.message.text);
-      return;
-    }
-
-    console.log(`[claude] resuming conversation sessionId=${sessionId} bot=${botName}`);
+    console.log(`[claude] continuing conversation via --continue bot=${botName}`);
 
     const runClaudeCommand = botRunnerMap.get(botName);
 
     try {
-      const output = await runClaudeCommand({ prompt: ctx.message.text, sessionId, resume: true });
+      const { output, sessionId } = await runClaudeCommand({ prompt: ctx.message.text, resume: true });
       console.log(`[claude] reply succeeded sessionId=${sessionId} outputLength=${output.length}`);
       conversationStore.appendExchange({ assistantMessage: output, sessionId, userMessage: ctx.message.text });
       await ctx.reply(output, { parse_mode: 'HTML' });
     } catch (error) {
-      console.error(`[claude] reply failed sessionId=${sessionId} error=${error.message}`);
-      const failureMessage = 'Claude command failed: ' + error.message;
-      conversationStore.appendExchange({ assistantMessage: failureMessage, sessionId, userMessage: ctx.message.text });
-      await ctx.reply(failureMessage);
+      console.error(`[claude] reply failed error=${error.message}`);
+      await ctx.reply('Claude command failed: ' + error.message);
     }
   };
 }
 
-function registerBot(telegramBot, config, { sessionStore, conversationStore, activeBotMap, spawnCommand } = {}) {
+function registerBot(telegramBot, config, { conversationStore, activeBotMap, spawnCommand } = {}) {
   const runClaudeCommand = createClaudeCommandRunner({
     model: config.model,
     tools: config.tools,
@@ -65,8 +53,6 @@ function registerBot(telegramBot, config, { sessionStore, conversationStore, act
       defaultPrompt: command.defaultPrompt,
       conversationStore,
       runClaudeCommand,
-      sessionStore,
-      sessionIsolation: config.sessionIsolation,
       botName: config.name,
       activeBotMap,
     });
@@ -82,7 +68,6 @@ function registerBot(telegramBot, config, { sessionStore, conversationStore, act
 
 function createBotFromDirectory(telegramBot, botsDir, opts = {}) {
   const loadAllBotConfigs = opts.loadAllBotConfigs ?? defaultLoadAllBotConfigs;
-  const sessionStore = opts.sessionStore ?? createClaudeSessionStore();
   const conversationStore = opts.conversationStore ?? createClaudeConversationStore();
   const activeBotMap = new Map();
   const botRunnerMap = new Map();
@@ -93,7 +78,6 @@ function createBotFromDirectory(telegramBot, botsDir, opts = {}) {
   for (const config of botConfigs) {
     console.log(`[startup] registering bot="${config.name}" commands=[${config.commands.map((c) => '/' + c.name).join(', ')}]`);
     const { runClaudeCommand } = registerBot(telegramBot, config, {
-      sessionStore,
       conversationStore,
       activeBotMap,
       spawnCommand: opts.spawnCommand,
@@ -103,7 +87,7 @@ function createBotFromDirectory(telegramBot, botsDir, opts = {}) {
 
   telegramBot.on(
     message('text'),
-    createMultiBotTextMessageHandler({ activeBotMap, botRunnerMap, conversationStore, sessionStore })
+    createMultiBotTextMessageHandler({ activeBotMap, botRunnerMap, conversationStore })
   );
 
   telegramBot.start((ctx) => ctx.reply('Welcome'));
