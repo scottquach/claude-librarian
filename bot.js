@@ -250,8 +250,8 @@ function createCommandHandler({
 
         const rawPrompt = getCommandPrompt(ctx.message?.text ?? '', commandName, defaultPrompt);
 
-        const { today, weekStartStr, weekNum } = computeDateContext();
-        const prompt = `[Context: today is ${today}, current week starts ${weekStartStr}, week number ${weekNum}]\n\n${rawPrompt}`;
+        const { today, currentTime, weekStartStr, weekNum } = computeDateContext();
+        const prompt = `[Context: today is ${today}, current time is ${currentTime}, current week starts ${weekStartStr}, week number ${weekNum}]\n\n${rawPrompt}`;
 
         console.log(`[claude] running command prompt="${prompt.slice(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
 

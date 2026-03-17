@@ -8,6 +8,7 @@ function localDate(d, tz) {
 function computeDateContext() {
   const now = new Date();
   const today = localDate(now, TIMEZONE);
+  const currentTime = new Intl.DateTimeFormat('en-GB', { timeZone: TIMEZONE, hour: '2-digit', minute: '2-digit', hour12: false }).format(now);
 
   // Reconstruct a "week start" Date by parsing today's date in the target timezone
   const [year, month, day] = today.split('-').map(Number);
@@ -19,7 +20,7 @@ function computeDateContext() {
   const jan1 = new Date(weekStart.getFullYear(), 0, 1);
   const weekNum = Math.ceil(((weekStart - jan1) / 86400000 + jan1.getDay() + 1) / 7);
 
-  return { today, weekStartStr, weekNum, year: weekStart.getFullYear() };
+  return { today, currentTime, weekStartStr, weekNum, year: weekStart.getFullYear() };
 }
 
 module.exports = { localDate, computeDateContext };
