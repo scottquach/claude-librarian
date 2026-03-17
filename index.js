@@ -3,7 +3,7 @@ const { Telegraf } = require('telegraf');
 const { join } = require('node:path');
 const { createBotFromDirectory } = require('./src/bot-factory');
 
-const token = process.env.BOT_TOKEN || '***REDACTED***';
+const token = process.env.BOT_TOKEN;
 const bot = new Telegraf(token);
 
 createBotFromDirectory(bot, join(__dirname, 'bots'));
