@@ -104,6 +104,38 @@ function getCommandPrompt(text = '', commandName, defaultPrompt) {
     return prompt || defaultPrompt;
 }
 
+const c = { reset: '\x1b[0m', dim: '\x1b[2m', cyan: '\x1b[36m', yellow: '\x1b[33m', green: '\x1b[32m', magenta: '\x1b[35m' };
+
+function logStreamEvent(event) {
+    const type = event.type;
+    if (type === 'system') return; // skip init noise
+
+    if (type === 'assistant') {
+        const blocks = event.message?.content ?? [];
+        for (const block of blocks) {
+            if (block.type === 'text' && block.text) {
+                process.stdout.write(`${c.reset}${block.text}`);
+            } else if (block.type === 'thinking' && block.thinking) {
+                process.stdout.write(`${c.dim}[thinking] ${block.thinking}${c.reset}\n`);
+            } else if (block.type === 'tool_use') {
+                const input = JSON.stringify(block.input ?? {});
+                process.stdout.write(`${c.cyan}[tool] ${block.name}(${input})${c.reset}\n`);
+            }
+        }
+    } else if (type === 'tool_result' || (type === 'user' && event.message?.content?.[0]?.type === 'tool_result')) {
+        const results = type === 'tool_result' ? [event] : event.message.content;
+        for (const r of results) {
+            const content = Array.isArray(r.content) ? r.content.map(c => c.text ?? '').join('') : (r.content ?? '');
+            const preview = content.slice(0, 120).replace(/\n/g, ' ');
+            process.stdout.write(`${c.yellow}[result] ${preview}${content.length > 120 ? '…' : ''}${c.reset}\n`);
+        }
+    } else if (type === 'result') {
+        const cost = event.cost_usd != null ? ` $${event.cost_usd.toFixed(4)}` : '';
+        const dur = event.duration_ms != null ? ` ${(event.duration_ms / 1000).toFixed(1)}s` : '';
+        process.stdout.write(`\n${c.green}[done]${cost}${dur}${c.reset}\n`);
+    }
+}
+
 function createClaudeCommandRunner({
     spawnCommand = spawn,
     timeoutMs = 80000,
@@ -123,7 +155,8 @@ function createClaudeCommandRunner({
         }
         if (tools.length) args.push('--allowed-tools', toolsArg);
         if (resume) args.push('--continue');
-        args.push('--output-format', 'json');
+        args.push('--output-format', 'stream-json');
+        args.push('--verbose');
         args.push('-p', prompt);
         return args;
     }
@@ -143,8 +176,22 @@ function createClaudeCommandRunner({
                 child.kill('SIGTERM');
             }, timeoutMs);
 
+            let lineBuffer = '';
             child.stdout.on('data', (chunk) => {
-                stdout += chunk.toString();
+                const text = chunk.toString();
+                stdout += text;
+                lineBuffer += text;
+                const lines = lineBuffer.split('\n');
+                lineBuffer = lines.pop(); // keep incomplete last line
+                for (const line of lines) {
+                    if (!line.trim()) continue;
+                    try {
+                        const event = JSON.parse(line);
+                        logStreamEvent(event);
+                    } catch {
+                        process.stdout.write(line + '\n');
+                    }
+                }
             });
             child.stderr.on('data', (chunk) => {
                 stderr += chunk.toString();
@@ -170,8 +217,13 @@ function createClaudeCommandRunner({
                 }
 
                 try {
-                    const parsed = JSON.parse(stdout.trim());
-                    resolve({ output: parsed.result ?? '', sessionId: parsed.session_id ?? '' });
+                    const lines = stdout.trim().split('\n').filter(Boolean);
+                    const resultLine = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean).findLast(e => e.type === 'result');
+                    if (resultLine) {
+                        resolve({ output: resultLine.result ?? '', sessionId: resultLine.session_id ?? '' });
+                    } else {
+                        resolve({ output: stdout.trim() || stderr.trim() || 'Claude command completed without output.', sessionId: '' });
+                    }
                 } catch {
                     resolve({ output: stdout.trim() || stderr.trim() || 'Claude command completed without output.', sessionId: '' });
                 }
