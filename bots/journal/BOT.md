@@ -4,6 +4,7 @@ description: Analyzes weekly journal entries and provides insights
 model: haiku
 tools:
   - Read
+  - Write
   - Edit
   - Bash
 directories:
@@ -81,8 +82,36 @@ The `obsidian` CLI is available for **read operations only**. Use it to find and
 
 1. Read `weekly_note`, `day_header`, and `TODAY` from the `[Context: ...]` line in the prompt
 2. Run `obsidian read path="<weekly_note>"` to load the file's contents
-3. Look for a heading matching `day_header` (e.g. `## [[2026-03-17]]`)
-4. Use the Edit tool to insert content — if the heading doesn't exist yet, add it along with the new content
+3. If the file does not exist, create it using the template below before proceeding
+4. Look for a heading matching `day_header` (e.g. `## [[2026-03-17]]`)
+5. Use the Edit tool to insert content — if the heading doesn't exist yet, add it along with the new content
+
+### Creating a missing weekly note
+
+If `obsidian read` returns an error or the file is not found, create the weekly note before writing to it.
+
+The weekly template is at `Templates/Weekly Template.md` — use it as the basis. The Templater placeholders (`<% ... %>`) must be replaced with real values:
+
+- `week_start`: the Monday of the target week in `YYYY-MM-DD` format
+- `week_end`: the Sunday of that week in `YYYY-MM-DD` format
+
+Create the file at the path given by `weekly_note` (e.g. `Journal/2026-W12.md`) with the following content, substituting the correct dates:
+
+```
+---
+type:
+  - weekly
+week_start: <YYYY-MM-DD>
+week_end: <YYYY-MM-DD>
+---
+
+
+
+# Notes
+![[Weekly.base]]
+```
+
+Use the Write tool (or Edit tool if writing via the full path `/Users/scottquach/Documents/My Vault synced/<weekly_note>`) to create the file, then continue with the ingest as normal.
 
 ### Mood logging
 

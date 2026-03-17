@@ -1,7 +1,6 @@
 // src/bot-config-loader.test.js
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { join } = require('node:path');
 const {
   parseFrontmatter,
   normalizeBotConfig,
