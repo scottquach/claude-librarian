@@ -39,6 +39,8 @@ Journal files live in `/Users/scottquach/Documents/My Vault synced/Journal/`.
 
 > Daily files (`YYYY-MM-DD.md`) are no longer used. All day-level content goes into the weekly file under the appropriate day heading.
 
+Weekly entires may have future looking days/weeks
+
 ### Common patterns in entries
 
 - Task checkboxes: `- [ ]` (pending) and `- [x]` (done)

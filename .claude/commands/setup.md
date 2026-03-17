@@ -25,7 +25,16 @@ If BOT_TOKEN is NOT set in `.env`:
 - If they provide a token: add/update `BOT_TOKEN=<token>` in `.env`
 - If they skip: note that the bot won't run without it
 
-### 3. Voice transcription (Whisper)
+### 3. Timezone
+
+Read `.env` to check if `BOT_TIMEZONE` is already set.
+
+If BOT_TIMEZONE is NOT set in `.env`:
+- Ask: "What timezone are you in? This ensures journal entries are dated correctly when the bot runs on a server. Enter an IANA timezone (e.g. America/Los_Angeles, America/New_York, Europe/London), or press Enter to default to America/Chicago:"
+- If they provide a value: add/update `BOT_TIMEZONE=<tz>` in `.env`
+- If they skip: add `BOT_TIMEZONE=America/Chicago` in `.env` and note the default
+
+### 4. Voice transcription (Whisper)
 
 Read `.env` to check if `OPENAI_API_KEY` is already set.
 
@@ -34,7 +43,7 @@ If OPENAI_API_KEY is NOT set in `.env`:
 - If they provide a key: add/update `OPENAI_API_KEY=<key>` in `.env`
 - If they skip: note that voice messages will fail gracefully — the bot still works for text
 
-### 4. Obsidian vault path
+### 5. Obsidian vault path
 
 Use Glob to find all `bots/*/BOT.md` files, then read each one.
 For each bot that has a `directories:` field in its frontmatter, extract the current paths.
@@ -45,7 +54,7 @@ If any bot has directories configured:
 - If they provide a new path: update the `directories:` value in that bot's BOT.md frontmatter, and also update any hardcoded absolute paths in the body of the prompt (e.g. `Journal files live in /...`)
 - Apply the same replacement to all supplementary `.md` files in that bot's directory
 
-### 5. Bots directory
+### 6. Bots directory
 
 Use Glob to find all `bots/*/BOT.md` files.
 
@@ -73,11 +82,12 @@ You are a helpful assistant.
 
 If bots exist: list their names and commands — e.g. "Found: journal (/journal)"
 
-### 6. Summary
+### 7. Summary
 
 Print a setup summary:
 - Prerequisites: ✓ / ✗
 - Telegram token: configured / missing
+- Timezone: configured (show value) / defaulted to America/Chicago
 - Voice (Whisper): configured / skipped
 - Vault/directory paths: updated / unchanged
 - Bots: list names and their commands

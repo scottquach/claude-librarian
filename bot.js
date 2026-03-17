@@ -1,6 +1,7 @@
 const { spawn } = require('node:child_process');
 const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');
 const { dirname, join } = require('node:path');
+const { computeDateContext } = require('./src/date-context');
 
 const CLAUDE_CONVERSATION_DIRECTORY_PATH = join(__dirname, 'conversations');
 
@@ -239,6 +240,7 @@ function createCommandHandler({
     runClaudeCommand,
     botName = 'default',
     activeBotMap = new Map(),
+    sessionDateMap = null,
 }) {
     return async function handleCommand(ctx) {
         const chatId = String(ctx.chat?.id ?? 'global');
@@ -248,14 +250,7 @@ function createCommandHandler({
 
         const rawPrompt = getCommandPrompt(ctx.message?.text ?? '', commandName, defaultPrompt);
 
-        const now = new Date();
-        const localDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-        const today = localDate(now);
-        const weekStart = new Date(now);
-        weekStart.setDate(now.getDate() - now.getDay());
-        const weekStartStr = localDate(weekStart);
-        const jan1 = new Date(weekStart.getFullYear(), 0, 1);
-        const weekNum = Math.ceil(((weekStart - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+        const { today, weekStartStr, weekNum } = computeDateContext();
         const prompt = `[Context: today is ${today}, current week starts ${weekStartStr}, week number ${weekNum}]\n\n${rawPrompt}`;
 
         console.log(`[claude] running command prompt="${prompt.slice(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
@@ -264,6 +259,7 @@ function createCommandHandler({
             const { output, sessionId } = await runClaudeCommand({ prompt, resume: false });
             console.log(`[claude] command succeeded sessionId=${sessionId} outputLength=${output.length}`);
             activeBotMap.set(chatId, botName);
+            if (sessionDateMap) sessionDateMap.set(chatId, today);
             conversationStore.appendExchange({ assistantMessage: output, sessionId, userMessage: prompt });
             await ctx.reply(output, { parse_mode: 'HTML' });
         } catch (error) {
