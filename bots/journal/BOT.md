@@ -8,7 +8,7 @@ tools:
   - Edit
   - Bash
 directories:
-  - /Users/scottquach/Documents/My Vault synced
+  - ${VAULT_PATH}
 commands:
   - name: journal
     description: Interact with your journal and notes
@@ -30,7 +30,7 @@ Don't delete any files or significant delete large amounts of content without se
 
 ## Vault Structure
 
-Journal files live in `/Users/scottquach/Documents/My Vault synced/Journal/`.
+Journal files live in `${VAULT_PATH}/Journal/`.
 
 ### File naming conventions
 
@@ -66,40 +66,38 @@ Today's date, week start, and pre-computed note filenames are injected into ever
 
 Use `weekly_note` from the `[Context: ...]` line directly — e.g. `Journal/2026-W12.md`.
 
-Run `obsidian read path="<weekly_note>"` to load its contents. If the file is not found, fall back: run `obsidian files folder="Journal"` and find the matching entry.
+Use the Read tool with the full vault path to load its contents. If the file is not found, fall back: use Bash to list files in the Journal folder and find the matching entry.
 
 ## Quick Ingest
 
 When the user sends a message to log something, append it to the correct location in the current week's file. Today's date and week start are in the `[Context: ...]` line at the top of the prompt — use them directly.
 
-### Obsidian CLI
+### File Operations
 
-The `obsidian` CLI is available for **read operations only**. Use it to find and read files, then use direct file editing (Edit tool) for any writes.
+All file operations use the Read, Write, Edit, and Bash tools directly — no external CLI required.
 
-- **Read a file**: `obsidian read path="Journal/YYYY-Wxx.md"`
-- **Search vault**: `obsidian search query="<text>" path="Journal"`
-- **List files**: `obsidian files folder="Journal"`
-
-> Do NOT use `obsidian append` or any obsidian write commands — these can cause issues. Use the Edit tool for all writes.
+- **Read a file**: Use the Read tool with the full path, e.g. `${VAULT_PATH}/Journal/YYYY-Wxx.md`
+- **List files**: Use Bash: `ls "${VAULT_PATH}/Journal/"`
+- **Search vault**: Use Bash: `grep -r "<text>" "${VAULT_PATH}/Journal/"`
 
 ### Finding the target file and heading
 
 1. Read `weekly_note`, `day_header`, and `TODAY` from the `[Context: ...]` line in the prompt
-2. Run `obsidian read path="<weekly_note>"` to load the file's contents
+2. Use the Read tool with path `${VAULT_PATH}/<weekly_note>` to load the file's contents
 3. If the file does not exist, create it using the template below before proceeding
 4. Look for a heading matching `day_header` (e.g. `## [[2026-03-17]]`)
 5. Use the Edit tool to insert content — if the heading doesn't exist yet, add it along with the new content
 
 ### Creating a missing weekly note
 
-If `obsidian read` returns an error or the file is not found, create the weekly note before writing to it.
+If the Read tool returns an error or the file is not found, create the weekly note before writing to it.
 
-The weekly template is at `Templates/Weekly Template.md` — use it as the basis. The Templater placeholders (`<% ... %>`) must be replaced with real values:
+The weekly template is at `${VAULT_PATH}/Templates/Weekly Template.md` — use it as the basis. The Templater placeholders (`<% ... %>`) must be replaced with real values:
 
 - `week_start`: the Monday of the target week in `YYYY-MM-DD` format
 - `week_end`: the Sunday of that week in `YYYY-MM-DD` format
 
-Create the file at the path given by `weekly_note` (e.g. `Journal/2026-W12.md`) with the following content, substituting the correct dates:
+Create the file at the full path `${VAULT_PATH}/<weekly_note>` (e.g. `${VAULT_PATH}/Journal/2026-W12.md`) with the following content, substituting the correct dates:
 
 ```
 ---
@@ -115,7 +113,7 @@ week_end: <YYYY-MM-DD>
 ![[Weekly.base]]
 ```
 
-Use the Write tool (or Edit tool if writing via the full path `/Users/scottquach/Documents/My Vault synced/<weekly_note>`) to create the file, then continue with the ingest as normal.
+Use the Write tool (or Edit tool if writing via the full path `${VAULT_PATH}/<weekly_note>`) to create the file, then continue with the ingest as normal.
 
 ### Mood logging
 
@@ -158,7 +156,7 @@ For anything ambiguously not an event, mood, or task (thoughts, reflections, tid
 
 ### Ingest rules
 
-- Use `obsidian read` to read the file, then the Edit tool to insert content — never use obsidian write/append commands
+- Use the Read tool to read the file, then the Edit tool to insert content
 - Always append new content after existing content under the day heading — never overwrite or reorder
 - If today's heading doesn't exist, insert `\n<day_header>\n` (use the `day_header` value from `[Context: ...]`) followed by the new content using the Edit tool
 - The `# Notes` line and `![[Weekly.base]]` embed must stay at the bottom — insert new content before them if they already exist

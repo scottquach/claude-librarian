@@ -19,7 +19,11 @@ function parseFrontmatter(fileContent) {
   return { frontmatter, body };
 }
 
-function normalizeBotConfig(raw, body, configDir) {
+function expandEnvVars(str, env) {
+  return str.replace(/\$\{([^}]+)\}/g, (match, key) => (key in env ? env[key] : match));
+}
+
+function normalizeBotConfig(raw, body, configDir, env = {}) {
   if (!raw.name) throw new Error('BotConfig missing required field: name');
   if (!raw.model) throw new Error('BotConfig missing required field: model');
   if (!raw.commands || raw.commands.length === 0) {
@@ -31,7 +35,7 @@ function normalizeBotConfig(raw, body, configDir) {
     description: String(raw.description ?? ''),
     model: String(raw.model),
     tools: Array.isArray(raw.tools) ? raw.tools.map(String) : [],
-    directories: Array.isArray(raw.directories) ? raw.directories.map(String) : [],
+    directories: Array.isArray(raw.directories) ? raw.directories.map((d) => expandEnvVars(String(d), env)) : [],
     commands: raw.commands.map((c) => ({
       name: String(c.name),
       description: String(c.description ?? ''),
@@ -39,7 +43,7 @@ function normalizeBotConfig(raw, body, configDir) {
     })),
     timeoutMs: typeof raw.timeoutMs === 'number' ? raw.timeoutMs : 80000,
     sessionIsolation: raw.sessionIsolation === 'shared' ? 'shared' : 'perCommand',
-    systemPrompt: String(body ?? '').trim(),
+    systemPrompt: expandEnvVars(String(body ?? '').trim(), env),
     configDir,
   };
 }
@@ -47,6 +51,7 @@ function normalizeBotConfig(raw, body, configDir) {
 function loadBotConfig(botMdPath, opts = {}) {
   const readFile = opts.readFile ?? ((p) => readFileSync(p, 'utf8'));
   const readdirSync = opts.readdirSync ?? ((d) => fsReaddirSync(d));
+  const env = opts.env ?? process.env;
   const configDir = dirname(botMdPath);
 
   const mainContent = readFile(botMdPath);
@@ -68,7 +73,7 @@ function loadBotConfig(botMdPath, opts = {}) {
     }
   }
 
-  return normalizeBotConfig(frontmatter, fullBody, configDir);
+  return normalizeBotConfig(frontmatter, fullBody, configDir, env);
 }
 
 function discoverBotConfigs(rootDir, opts = {}) {

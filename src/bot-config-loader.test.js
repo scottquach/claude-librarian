@@ -139,6 +139,31 @@ test('discoverBotConfigs returns empty array for empty directory', () => {
   assert.deepEqual(paths, []);
 });
 
+test('loadBotConfig expands env vars in directories and systemPrompt', () => {
+  const botMd = `---
+name: journal
+description: Test
+model: haiku
+directories:
+  - \${VAULT_PATH}
+commands:
+  - name: journal
+    description: x
+---
+
+Files live at \${VAULT_PATH}/Journal.
+`;
+  const readFile = (p) => {
+    if (p.endsWith('BOT.md')) return botMd;
+    throw Object.assign(new Error(), { code: 'ENOENT' });
+  };
+  const readdirSync = () => ['BOT.md'];
+  const env = { VAULT_PATH: '/my/vault' };
+  const config = loadBotConfig('/bots/journal/BOT.md', { readFile, readdirSync, env });
+  assert.deepEqual(config.directories, ['/my/vault']);
+  assert.match(config.systemPrompt, /\/my\/vault\/Journal/);
+});
+
 test('loadAllBotConfigs throws when two bots share the same name', () => {
   // Create two BOT.md files with same name - should throw with both paths listed
   const botMd = `---\nname: dup\nmodel: haiku\ncommands:\n  - name: dup\n    description: x\n    defaultPrompt: x\n---\nPrompt.`;
