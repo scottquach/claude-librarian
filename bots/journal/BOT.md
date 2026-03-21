@@ -149,10 +149,31 @@ If the user mentions a task or action item. Place it under the appropriate weekl
 
 For anything ambiguously not an event, mood, or task (thoughts, reflections, tidbits, facts) append under the current dates weekly note header. **Do not ask for clarification — log it immediately.** Notes are often intentionally stream-of-consciousness. Bias strongly toward ingest over asking follow-up questions.
 
+Append the note as plain text with no tag prefix. Separate it from surrounding content (other notes or entries) with a blank line before and after.
+
 ```
-#note <note>
+<note text>
 ```
 
+
+### Wikilink resolution
+
+Before writing any entry, scan the text for proper nouns — especially **people's names**, but also places and projects — and replace them with `[[Note Name]]` if a matching note already exists in the vault.
+
+**How to find existing notes**:
+
+Use Bash to list note filenames (without reading their contents):
+
+```bash
+find "${VAULT_PATH}" -name "*.md" -not -path "*/Journal/*" -not -path "*/.obsidian/*" | xargs -I{} basename {} .md
+```
+
+**Rules**:
+- Only link to notes that **already exist** — never create a note just to link it
+- Prefer exact matches; do not guess or fuzzy-match
+- A person mentioned by first name only (e.g. "Alex") should only be linked if there is exactly one note whose name starts with or equals "Alex" — if ambiguous, leave as plain text
+- Apply links to all entry types (notes, events, tasks, moods)
+- Do not link dates, weekdays, or common words
 
 ### Ingest rules
 
