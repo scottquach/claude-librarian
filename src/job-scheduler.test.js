@@ -37,3 +37,8 @@ test('parseJobConfig throws when cron is missing', () => {
   const md = `---\nname: my-job\n---\n\nPrompt.\n`;
   assert.throws(() => parseJobConfig(md), /cron/);
 });
+
+test('parseJobConfig throws when cron expression is invalid', () => {
+  const md = `---\nname: bad-job\ncron: "0 9 * *"\n---\n\nPrompt.\n`;
+  assert.throws(() => parseJobConfig(md), /invalid cron/);
+});
