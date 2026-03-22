@@ -45,9 +45,8 @@ function scheduleJobs(bot, jobsDir, opts = {}) {
   });
 
   for (const job of jobs) {
-    const runClaudeCommand = opts.runClaudeCommand ?? createClaudeCommandRunner({ model: job.model });
-
     cron.schedule(job.cron, async () => {
+      const runClaudeCommand = opts.runClaudeCommand ?? createClaudeCommandRunner({ model: job.model });
       console.log(`[job] running: ${job.name}`);
       try {
         const { output } = await runClaudeCommand({ prompt: job.prompt });
