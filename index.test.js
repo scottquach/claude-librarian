@@ -1,12 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { EventEmitter } = require('node:events');
 const { mkdtempSync, readFileSync, rmSync } = require('node:fs');
 const { join } = require('node:path');
 const { tmpdir } = require('node:os');
 
 const {
-  createClaudeCommandRunner,
   createClaudeConversationStore,
   createCommandHandler,
 } = require('./bot');
@@ -109,7 +107,7 @@ test('starts a new Claude session when the journal command is called', async () 
 
     assert.equal(runCalls.length, 1);
     assert.match(runCalls[0].prompt, /^\[Context:.*\]\n\nReview my latest weekly note for insights$/s);
-    assert.equal(runCalls[0].resume, false);
+    assert.equal(runCalls[0].sessionId, null);
     assert.deepEqual(replies, ['hello from claude']);
   });
 });
@@ -144,7 +142,7 @@ test('passes the journal command text to Claude as the prompt', async () => {
 
     assert.equal(runCalls.length, 1);
     assert.match(runCalls[0].prompt, /^\[Context:.*\]\n\nsummarize the latest note$/s);
-    assert.equal(runCalls[0].resume, false);
+    assert.equal(runCalls[0].sessionId, null);
     assert.deepEqual(replies, ['hello from claude']);
   });
 });
@@ -178,69 +176,3 @@ test('stores session conversations as XML in the conversations folder', async ()
   });
 });
 
-test('runs the Claude CLI with inherited stdin and returns stdout', async () => {
-  const stdout = new EventEmitter();
-  const stderr = new EventEmitter();
-  const child = new EventEmitter();
-  child.stdout = stdout;
-  child.stderr = stderr;
-
-  let spawnArgs;
-  const spawnCommand = (command, args, options) => {
-    spawnArgs = { command, args, options };
-
-    process.nextTick(() => {
-      stdout.emit('data', Buffer.from('{"type":"result","result":"hello from claude","session_id":"test-uuid"}\n'));
-      child.emit('close', 0, null);
-    });
-
-    return child;
-  };
-
-  const runClaudeCommand = createClaudeCommandRunner({
-    spawnCommand,
-    timeoutMs: 50,
-    model: 'haiku',
-    tools: ['Read', 'Edit'],
-    directories: ['/Users/scottquach/Documents/My Vault synced'],
-  });
-
-  const result = await runClaudeCommand({
-    prompt: 'Review my latest weekly note for insights',
-  });
-
-  assert.deepEqual(result, { output: 'hello from claude', sessionId: 'test-uuid' });
-  assert.equal(spawnArgs.command, 'claude');
-  assert.deepEqual(spawnArgs.args, [
-    '--model', 'haiku',
-    '--add-dir', '/Users/scottquach/Documents/My Vault synced',
-    '--allowed-tools', 'Read,Edit',
-    '--output-format', 'json',
-    '-p', 'Review my latest weekly note for insights',
-  ]);
-  assert.deepEqual(spawnArgs.options.stdio, ['inherit', 'pipe', 'pipe']);
-});
-
-test('times out the Claude CLI when it does not finish promptly', async () => {
-  const child = new EventEmitter();
-  child.stdout = new EventEmitter();
-  child.stderr = new EventEmitter();
-
-  let killedWithSignal;
-  child.kill = (signal) => {
-    killedWithSignal = signal;
-    process.nextTick(() => child.emit('close', null, signal));
-    return true;
-  };
-
-  const runClaudeCommand = createClaudeCommandRunner({
-    spawnCommand: () => child,
-    timeoutMs: 10,
-  });
-
-  await assert.rejects(
-    runClaudeCommand(),
-    /Claude command timed out after 10ms/,
-  );
-  assert.equal(killedWithSignal, 'SIGTERM');
-});

@@ -1,7 +1,7 @@
-const { spawn } = require('node:child_process');
+const { query } = require('@anthropic-ai/claude-agent-sdk');
 const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');
 const { dirname, join } = require('node:path');
-const { injectContext } = require('./src/date-context');
+const { computeDateContext, injectContext } = require('./src/date-context');
 const { markdownToTelegramHtml } = require('./src/telegram-format');
 
 const CLAUDE_CONVERSATION_DIRECTORY_PATH = join(__dirname, 'conversations');
@@ -132,105 +132,53 @@ function logStreamEvent(event) {
             process.stdout.write(`${c.yellow}[result] ${preview}${content.length > 120 ? '…' : ''}${c.reset}\n`);
         }
     } else if (type === 'result') {
-        const cost = event.cost_usd != null ? ` $${event.cost_usd.toFixed(4)}` : '';
+        const cost = event.total_cost_usd != null ? ` $${event.total_cost_usd.toFixed(4)}` : '';
         const dur = event.duration_ms != null ? ` ${(event.duration_ms / 1000).toFixed(1)}s` : '';
         process.stdout.write(`\n${c.green}[done]${cost}${dur}${c.reset}\n`);
     }
 }
 
 function createClaudeCommandRunner({
-    spawnCommand = spawn,
-    timeoutMs = 80000,
     model = 'haiku',
     tools = [],
     directories = [],
     systemPrompt = '',
 } = {}) {
-    const toolsArg = tools.join(',');
+    return async function runClaudeCommand({ prompt = '', sessionId = null } = {}) {
+        let newSessionId = sessionId;
+        let result = null;
 
-    function buildArgs({ prompt, resume = false }) {
-        const args = [];
-        if (!resume) {
-            args.push('--model', model);
-            for (const dir of directories) args.push('--add-dir', dir);
-            if (systemPrompt) args.push('--system-prompt', systemPrompt);
+        const options = {
+            pathToClaudeCodeExecutable: process.env.CLAUDE_PATH ?? 'claude',
+            env: process.env,
+            cwd: directories[0],
+            additionalDirectories: directories.slice(1),
+            allowedTools: tools,
+            model,
+            systemPrompt: systemPrompt || undefined,
+            permissionMode: 'acceptEdits',
+            allowDangerouslySkipPermissions: false,
+            includePartialMessages: true,
+            ...(sessionId ? { resume: sessionId } : {}),
+        };
+
+        for await (const message of query({ prompt, options })) {
+            logStreamEvent(message);
+            if (message.type === 'system' && message.subtype === 'init') {
+                newSessionId = message.session_id;
+            }
+            if (message.type === 'result') {
+                if (message.subtype === 'success') {
+                    result = message.result ?? '';
+                } else {
+                    throw new Error(
+                        message.errors?.join('; ') ?? `Claude ended with subtype: ${message.subtype}`
+                    );
+                }
+            }
         }
-        if (tools.length) args.push('--allowed-tools', toolsArg);
-        if (resume) args.push('--continue');
-        args.push('--output-format', 'stream-json');
-        args.push('--verbose');
-        args.push('-p', prompt);
-        return args;
-    }
 
-    return function runClaudeCommand({ prompt = '', resume = false } = {}) {
-        const args = buildArgs({ prompt, resume });
-        return new Promise((resolve, reject) => {
-            const child = spawnCommand('claude', args, {
-                env: process.env,
-                stdio: ['inherit', 'pipe', 'pipe'],
-            });
-            let stdout = '';
-            let stderr = '';
-            let didTimeout = false;
-            const timeoutId = setTimeout(() => {
-                didTimeout = true;
-                child.kill('SIGTERM');
-            }, timeoutMs);
-
-            let lineBuffer = '';
-            child.stdout.on('data', (chunk) => {
-                const text = chunk.toString();
-                stdout += text;
-                lineBuffer += text;
-                const lines = lineBuffer.split('\n');
-                lineBuffer = lines.pop(); // keep incomplete last line
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-                    try {
-                        const event = JSON.parse(line);
-                        logStreamEvent(event);
-                    } catch {
-                        process.stdout.write(line + '\n');
-                    }
-                }
-            });
-            child.stderr.on('data', (chunk) => {
-                stderr += chunk.toString();
-            });
-            child.on('error', (error) => {
-                clearTimeout(timeoutId);
-                reject(error);
-            });
-            child.on('close', (code, signal) => {
-                clearTimeout(timeoutId);
-
-                if (didTimeout) {
-                    reject(new Error(`Claude command timed out after ${timeoutMs}ms`));
-                    return;
-                }
-
-                if (code !== 0) {
-                    const errorMessage =
-                        stderr.trim() ||
-                        `Claude command exited with code ${code ?? 'unknown'}${signal ? ` (signal ${signal})` : ''}`;
-                    reject(new Error(errorMessage));
-                    return;
-                }
-
-                try {
-                    const lines = stdout.trim().split('\n').filter(Boolean);
-                    const resultLine = lines.map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean).findLast(e => e.type === 'result');
-                    if (resultLine) {
-                        resolve({ output: resultLine.result ?? '', sessionId: resultLine.session_id ?? '' });
-                    } else {
-                        resolve({ output: stdout.trim() || stderr.trim() || 'Claude command completed without output.', sessionId: '' });
-                    }
-                } catch {
-                    resolve({ output: stdout.trim() || stderr.trim() || 'Claude command completed without output.', sessionId: '' });
-                }
-            });
-        });
+        return { output: result ?? '', sessionId: newSessionId ?? '' };
     };
 }
 
@@ -242,6 +190,7 @@ function createCommandHandler({
     botName = 'default',
     activeBotMap = new Map(),
     sessionDateMap = null,
+    sessionIdMap = null,
 }) {
     return async function handleCommand(ctx) {
         const chatId = String(ctx.chat?.id ?? 'global');
@@ -256,10 +205,14 @@ function createCommandHandler({
         console.log(`[claude] running command prompt="${prompt.slice(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
 
         try {
-            const { output, sessionId } = await runClaudeCommand({ prompt, resume: false });
+            const { output, sessionId } = await runClaudeCommand({ prompt, sessionId: null });
             console.log(`[claude] command succeeded sessionId=${sessionId} outputLength=${output.length}`);
             activeBotMap.set(chatId, botName);
-            if (sessionDateMap) sessionDateMap.set(chatId, today);
+            if (sessionDateMap) {
+                const { today } = computeDateContext();
+                sessionDateMap.set(chatId, today);
+            }
+            if (sessionIdMap) sessionIdMap.set(chatId, sessionId);
             conversationStore.appendExchange({ assistantMessage: output, sessionId, userMessage: prompt });
             await ctx.reply(markdownToTelegramHtml(output), { parse_mode: 'HTML' });
         } catch (error) {

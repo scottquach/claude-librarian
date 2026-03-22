@@ -4,8 +4,8 @@ const assert = require('node:assert/strict');
 const { mkdtempSync, rmSync } = require('node:fs');
 const { join } = require('node:path');
 const { tmpdir } = require('node:os');
-const { EventEmitter } = require('node:events');
 const { createClaudeConversationStore } = require('../bot');
+const { computeDateContext } = require('./date-context');
 
 function withTempStorage(runTest) {
   const tempDirectory = mkdtempSync(join(tmpdir(), 'bot-factory-test-'));
@@ -27,19 +27,6 @@ const JOURNAL_CONFIG = {
   systemPrompt: 'You are a journal assistant.',
   configDir: '/bots/journal',
 };
-
-function makeSpawnCommand(responseText) {
-  return () => {
-    const child = new EventEmitter();
-    child.stdout = new EventEmitter();
-    child.stderr = new EventEmitter();
-    process.nextTick(() => {
-      child.stdout.emit('data', Buffer.from(JSON.stringify({ type: 'result', result: responseText, session_id: 'test-session' }) + '\n'));
-      child.emit('close', 0, null);
-    });
-    return child;
-  };
-}
 
 test('registerBot registers command name on Telegraf bot', async () => {
   await withTempStorage(async ({ conversationStore }) => {
@@ -68,7 +55,8 @@ test('command handler replies with Claude output', async () => {
     registerBot(fakeBot, JOURNAL_CONFIG, {
       conversationStore,
       activeBotMap: new Map(),
-      spawnCommand: makeSpawnCommand('journal output'),
+      sessionIdMap: new Map(),
+      createRunner: () => async () => ({ output: 'journal output', sessionId: 'test-session' }),
     });
 
     for (const handler of capturedHandlers) await handler(ctx);
@@ -84,7 +72,12 @@ test('command handler updates activeBotMap on success', async () => {
     const fakeBot = { command: (name, handler) => { capturedHandler = handler; } };
 
     const { registerBot } = require('./bot-factory');
-    registerBot(fakeBot, JOURNAL_CONFIG, { conversationStore, activeBotMap, spawnCommand: makeSpawnCommand('ok') });
+    registerBot(fakeBot, JOURNAL_CONFIG, {
+      conversationStore,
+      activeBotMap,
+      sessionIdMap: new Map(),
+      createRunner: () => async () => ({ output: 'ok', sessionId: 'test-session' }),
+    });
 
     await capturedHandler({
       chat: { id: 42 },
@@ -101,17 +94,15 @@ test('text message routes to active bot session', async () => {
     const replies = [];
     const activeBotMap = new Map();
     activeBotMap.set('42', 'journal');
+    const { today } = computeDateContext();
+    const sessionDateMap = new Map([['42', today]]);
 
     const { createMultiBotTextMessageHandler } = require('./bot-factory');
     const botRunnerMap = new Map();
-    const { createClaudeCommandRunner } = require('../bot');
-    botRunnerMap.set('journal', createClaudeCommandRunner({
-      ...JOURNAL_CONFIG,
-      spawnCommand: makeSpawnCommand('resumed response'),
-    }));
+    botRunnerMap.set('journal', async () => ({ output: 'resumed response', sessionId: 'test-session' }));
 
     const handler = createMultiBotTextMessageHandler({
-      activeBotMap, botRunnerMap, conversationStore,
+      activeBotMap, sessionDateMap, botRunnerMap, conversationStore,
     });
 
     await handler({
@@ -130,6 +121,7 @@ test('text message echoes when no active bot', async () => {
     const { createMultiBotTextMessageHandler } = require('./bot-factory');
     const handler = createMultiBotTextMessageHandler({
       activeBotMap: new Map(),
+      sessionDateMap: new Map(),
       botRunnerMap: new Map(),
       conversationStore,
     });

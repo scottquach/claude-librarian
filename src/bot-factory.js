@@ -21,17 +21,18 @@ function buildContextPrompt(text) {
   };
 }
 
-function checkDailyReset(chatId, { activeBotMap, sessionDateMap }) {
+function checkDailyReset(chatId, { activeBotMap, sessionDateMap, sessionIdMap }) {
   const { today } = computeDateContext();
   if (sessionDateMap.get(chatId) !== today) {
     activeBotMap.delete(chatId);
     sessionDateMap.delete(chatId);
+    sessionIdMap?.delete(chatId);
     return true;
   }
   return false;
 }
 
-async function routeMessageToActiveBot(ctx, text, { activeBotMap, botRunnerMap, conversationStore }) {
+async function routeMessageToActiveBot(ctx, text, { activeBotMap, botRunnerMap, sessionIdMap, conversationStore }) {
   const chatId = String(ctx.chat?.id ?? 'global');
   const botName = activeBotMap.get(chatId);
 
@@ -40,13 +41,15 @@ async function routeMessageToActiveBot(ctx, text, { activeBotMap, botRunnerMap, 
     return;
   }
 
-  console.log(`[claude] continuing conversation via --continue bot=${botName}`);
+  console.log(`[claude] continuing conversation bot=${botName}`);
 
   const runClaudeCommand = botRunnerMap.get(botName);
+  const existingSessionId = sessionIdMap?.get(chatId) ?? null;
 
   try {
-    const { output, sessionId } = await runClaudeCommand({ prompt: text, resume: true });
+    const { output, sessionId } = await runClaudeCommand({ prompt: text, sessionId: existingSessionId });
     console.log(`[claude] reply succeeded sessionId=${sessionId} outputLength=${output.length}`);
+    sessionIdMap?.set(chatId, sessionId);
     conversationStore.appendExchange({ assistantMessage: output, sessionId, userMessage: text });
     await ctx.reply(output, { parse_mode: 'HTML' });
   } catch (error) {
@@ -55,7 +58,7 @@ async function routeMessageToActiveBot(ctx, text, { activeBotMap, botRunnerMap, 
   }
 }
 
-async function startDefaultSession(ctx, text, { activeBotMap, sessionDateMap, botRunnerMap, conversationStore, defaultConfig }) {
+async function startDefaultSession(ctx, text, { activeBotMap, sessionDateMap, sessionIdMap, botRunnerMap, conversationStore, defaultConfig }) {
   const chatId = String(ctx.chat?.id ?? 'global');
 
   if (!defaultConfig) {
@@ -69,10 +72,11 @@ async function startDefaultSession(ctx, text, { activeBotMap, sessionDateMap, bo
 
   const runClaudeCommand = botRunnerMap.get(defaultConfig.name);
   try {
-    const { output, sessionId } = await runClaudeCommand({ prompt, resume: false });
+    const { output, sessionId } = await runClaudeCommand({ prompt, sessionId: null });
     console.log(`[claude] default session started sessionId=${sessionId} outputLength=${output.length}`);
     activeBotMap.set(chatId, defaultConfig.name);
     sessionDateMap.set(chatId, today);
+    sessionIdMap?.set(chatId, sessionId);
     conversationStore.appendExchange({ assistantMessage: output, sessionId, userMessage: prompt });
     await ctx.reply(output, { parse_mode: 'HTML' });
   } catch (error) {
@@ -81,34 +85,38 @@ async function startDefaultSession(ctx, text, { activeBotMap, sessionDateMap, bo
   }
 }
 
-function createMultiBotTextMessageHandler({ activeBotMap, sessionDateMap, botRunnerMap, conversationStore, defaultConfig }) {
+function createMultiBotTextMessageHandler({ activeBotMap, sessionDateMap, sessionIdMap, botRunnerMap, conversationStore, defaultConfig }) {
   return async function handleTextMessage(ctx) {
     const chatId = String(ctx.chat?.id ?? 'global');
     const username = ctx.from?.username ?? ctx.from?.id ?? 'unknown';
 
-    const wasReset = checkDailyReset(chatId, { activeBotMap, sessionDateMap });
+    const wasReset = checkDailyReset(chatId, { activeBotMap, sessionDateMap, sessionIdMap });
     const botName = activeBotMap.get(chatId);
 
     console.log(`[message] text received from user=${username} chatId=${chatId} activeBot=${botName ?? 'none'}${wasReset ? ' (daily reset)' : ''}`);
 
     if (!botName) {
-      await startDefaultSession(ctx, ctx.message.text, { activeBotMap, sessionDateMap, botRunnerMap, conversationStore, defaultConfig });
+      if (!defaultConfig) {
+        await ctx.reply('You said: ' + ctx.message.text);
+        return;
+      }
+      await startDefaultSession(ctx, ctx.message.text, { activeBotMap, sessionDateMap, sessionIdMap, botRunnerMap, conversationStore, defaultConfig });
       return;
     }
 
-    await routeMessageToActiveBot(ctx, ctx.message.text, { activeBotMap, botRunnerMap, conversationStore });
+    await routeMessageToActiveBot(ctx, ctx.message.text, { activeBotMap, botRunnerMap, sessionIdMap, conversationStore });
   };
 }
 
-function registerBot(telegramBot, config, { conversationStore, activeBotMap, sessionDateMap, spawnCommand } = {}) {
-  const runClaudeCommand = createClaudeCommandRunner({
-    model: config.model,
-    tools: config.tools,
-    directories: config.directories,
-    systemPrompt: config.systemPrompt,
-    timeoutMs: config.timeoutMs,
-    spawnCommand,
-  });
+function registerBot(telegramBot, config, { conversationStore, activeBotMap, sessionDateMap, sessionIdMap, createRunner } = {}) {
+  const runClaudeCommand = createRunner
+    ? createRunner(config)
+    : createClaudeCommandRunner({
+        model: config.model,
+        tools: config.tools,
+        directories: config.directories,
+        systemPrompt: config.systemPrompt,
+      });
 
   const commandPromises = [];
   for (const command of config.commands) {
@@ -120,6 +128,7 @@ function registerBot(telegramBot, config, { conversationStore, activeBotMap, ses
       botName: config.name,
       activeBotMap,
       sessionDateMap,
+      sessionIdMap,
     });
     const result = telegramBot.command(command.name, handler);
     if (result && typeof result.then === 'function') {
@@ -136,6 +145,7 @@ function createBotFromDirectory(telegramBot, botsDir, opts = {}) {
   const conversationStore = opts.conversationStore ?? createClaudeConversationStore();
   const activeBotMap = new Map();
   const sessionDateMap = new Map(); // chatId → 'YYYY-MM-DD'
+  const sessionIdMap = new Map();   // chatId → sessionId string
   const botRunnerMap = new Map();
   const transcribeVoice = opts.transcribeVoice ?? createTranscriber();
 
@@ -150,14 +160,15 @@ function createBotFromDirectory(telegramBot, botsDir, opts = {}) {
       conversationStore,
       activeBotMap,
       sessionDateMap,
-      spawnCommand: opts.spawnCommand,
+      sessionIdMap,
+      createRunner: opts.createRunner,
     });
     botRunnerMap.set(config.name, runClaudeCommand);
   }
 
   telegramBot.on(
     message('text'),
-    createMultiBotTextMessageHandler({ activeBotMap, sessionDateMap, botRunnerMap, conversationStore, defaultConfig })
+    createMultiBotTextMessageHandler({ activeBotMap, sessionDateMap, sessionIdMap, botRunnerMap, conversationStore, defaultConfig })
   );
 
   telegramBot.on(message('voice'), async (ctx) => {
@@ -175,7 +186,7 @@ function createBotFromDirectory(telegramBot, botsDir, opts = {}) {
       return;
     }
 
-    const wasReset = checkDailyReset(chatId, { activeBotMap, sessionDateMap });
+    const wasReset = checkDailyReset(chatId, { activeBotMap, sessionDateMap, sessionIdMap });
     if (wasReset) {
       console.log(`[message] daily reset for chatId=${chatId}`);
     }
@@ -183,11 +194,11 @@ function createBotFromDirectory(telegramBot, botsDir, opts = {}) {
     const activeBotName = activeBotMap.get(chatId);
 
     if (activeBotName) {
-      await routeMessageToActiveBot(ctx, transcript, { activeBotMap, botRunnerMap, conversationStore });
+      await routeMessageToActiveBot(ctx, transcript, { activeBotMap, botRunnerMap, sessionIdMap, conversationStore });
       return;
     }
 
-    await startDefaultSession(ctx, transcript, { activeBotMap, sessionDateMap, botRunnerMap, conversationStore, defaultConfig });
+    await startDefaultSession(ctx, transcript, { activeBotMap, sessionDateMap, sessionIdMap, botRunnerMap, conversationStore, defaultConfig });
   });
 
   telegramBot.start((ctx) => ctx.reply('Welcome'));
