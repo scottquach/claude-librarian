@@ -2,6 +2,7 @@ const { parseFrontmatter } = require('./bot-config-loader');
 const nodeCron = require('node-cron');
 const { readFileSync, readdirSync } = require('node:fs');
 const { join } = require('node:path');
+const { createClaudeCommandRunner } = require('../bot');
 
 function parseJobConfig(fileContent) {
   const { frontmatter, body } = parseFrontmatter(fileContent);
@@ -34,4 +35,36 @@ function loadJobConfigs(jobsDir, opts = {}) {
   });
 }
 
-module.exports = { parseJobConfig, loadJobConfigs };
+function scheduleJobs(bot, jobsDir, opts = {}) {
+  const cron = opts.cron ?? nodeCron;
+  const defaultChatId = opts.defaultChatId ?? process.env.DEFAULT_CHAT_ID;
+
+  const jobs = loadJobConfigs(jobsDir, {
+    readdir: opts.readdir,
+    readFile: opts.readFile,
+  });
+
+  for (const job of jobs) {
+    const runClaudeCommand = opts.runClaudeCommand ?? createClaudeCommandRunner({ model: job.model });
+
+    cron.schedule(job.cron, async () => {
+      console.log(`[job] running: ${job.name}`);
+      try {
+        const { output } = await runClaudeCommand({ prompt: job.prompt });
+        console.log(`[job] completed: ${job.name}`);
+        if (job.telegram && defaultChatId) {
+          await bot.telegram.sendMessage(defaultChatId, output);
+        }
+      } catch (error) {
+        console.error(`[job] failed: ${job.name} — ${error.message}`);
+        if (job.telegram && defaultChatId) {
+          await bot.telegram.sendMessage(defaultChatId, `Job "${job.name}" failed: ${error.message}`);
+        }
+      }
+    });
+
+    console.log(`[job] scheduled: ${job.name} (${job.cron})`);
+  }
+}
+
+module.exports = { parseJobConfig, loadJobConfigs, scheduleJobs };
