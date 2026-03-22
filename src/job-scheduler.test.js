@@ -42,3 +42,42 @@ test('parseJobConfig throws when cron expression is invalid', () => {
   const md = `---\nname: bad-job\ncron: "0 9 * *"\n---\n\nPrompt.\n`;
   assert.throws(() => parseJobConfig(md), /invalid cron/);
 });
+
+const { loadJobConfigs } = require('./job-scheduler');
+
+test('loadJobConfigs returns a parsed job config for each .md file in the directory', () => {
+  const files = {
+    'daily-summary.md': `---\nname: daily-summary\ncron: "0 9 * * *"\ntelegram: true\n---\n\nSummarize journal.\n`,
+    'silent-job.md': `---\nname: silent-job\ncron: "*/5 * * * *"\n---\n\nDo something.\n`,
+  };
+
+  const fakeReaddir = () => Object.keys(files);
+  const fakeReadFile = (p) => files[require('node:path').basename(p)];
+
+  const jobs = loadJobConfigs('/fake/jobs', {
+    readdir: fakeReaddir,
+    readFile: fakeReadFile,
+  });
+
+  assert.equal(jobs.length, 2);
+  assert.equal(jobs[0].name, 'daily-summary');
+  assert.equal(jobs[1].name, 'silent-job');
+});
+
+test('loadJobConfigs ignores non-.md files', () => {
+  const fakeReaddir = () => ['job.md', 'README.txt', '.DS_Store'];
+  const fakeReadFile = () => `---\nname: job\ncron: "0 * * * *"\n---\n\nPrompt.\n`;
+
+  const jobs = loadJobConfigs('/fake/jobs', {
+    readdir: fakeReaddir,
+    readFile: fakeReadFile,
+  });
+
+  assert.equal(jobs.length, 1);
+});
+
+test('loadJobConfigs returns empty array when directory has no .md files', () => {
+  const fakeReaddir = () => [];
+  const jobs = loadJobConfigs('/fake/jobs', { readdir: fakeReaddir, readFile: () => '' });
+  assert.deepEqual(jobs, []);
+});

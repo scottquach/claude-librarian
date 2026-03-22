@@ -19,4 +19,20 @@ function parseJobConfig(fileContent) {
   };
 }
 
-module.exports = { parseJobConfig };
+const { readFileSync, readdirSync } = require('node:fs');
+const { join } = require('node:path');
+
+function loadJobConfigs(jobsDir, opts = {}) {
+  const readdir = opts.readdir ?? ((d) => readdirSync(d));
+  const readFile = opts.readFile ?? ((p) => readFileSync(p, 'utf8'));
+
+  const filenames = readdir(jobsDir);
+  const mdFiles = filenames.filter((f) => f.endsWith('.md'));
+
+  return mdFiles.map((filename) => {
+    const content = readFile(join(jobsDir, filename));
+    return parseJobConfig(content);
+  });
+}
+
+module.exports = { parseJobConfig, loadJobConfigs };
