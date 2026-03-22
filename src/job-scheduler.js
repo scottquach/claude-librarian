@@ -45,19 +45,21 @@ function scheduleJobs(bot, jobsDir, opts = {}) {
   });
 
   for (const job of jobs) {
+    const runClaudeCommand = opts.runClaudeCommand ?? createClaudeCommandRunner({ model: job.model });
     cron.schedule(job.cron, async () => {
-      const runClaudeCommand = opts.runClaudeCommand ?? createClaudeCommandRunner({ model: job.model });
       console.log(`[job] running: ${job.name}`);
       try {
         const { output } = await runClaudeCommand({ prompt: job.prompt });
         console.log(`[job] completed: ${job.name}`);
         if (job.telegram && defaultChatId) {
-          await bot.telegram.sendMessage(defaultChatId, output);
+          await bot.telegram.sendMessage(defaultChatId, output)
+            .catch((err) => console.error(`[job] telegram send failed: ${err.message}`));
         }
       } catch (error) {
         console.error(`[job] failed: ${job.name} — ${error.message}`);
         if (job.telegram && defaultChatId) {
-          await bot.telegram.sendMessage(defaultChatId, `Job "${job.name}" failed: ${error.message}`);
+          await bot.telegram.sendMessage(defaultChatId, `Job "${job.name}" failed: ${error.message}`)
+            .catch((err) => console.error(`[job] telegram send failed: ${err.message}`));
         }
       }
     });
