@@ -1,5 +1,7 @@
 const { parseFrontmatter } = require('./bot-config-loader');
 const nodeCron = require('node-cron');
+const { readFileSync, readdirSync } = require('node:fs');
+const { join } = require('node:path');
 
 function parseJobConfig(fileContent) {
   const { frontmatter, body } = parseFrontmatter(fileContent);
@@ -18,9 +20,6 @@ function parseJobConfig(fileContent) {
     prompt: body,
   };
 }
-
-const { readFileSync, readdirSync } = require('node:fs');
-const { join } = require('node:path');
 
 function loadJobConfigs(jobsDir, opts = {}) {
   const readdir = opts.readdir ?? ((d) => readdirSync(d));
