@@ -7,17 +7,17 @@ const {
 } = require('../bot');
 const { loadAllBotConfigs: defaultLoadAllBotConfigs } = require('./bot-config-loader');
 const { createTranscriber } = require('./transcribe');
-const { computeDateContext } = require('./date-context');
+const { computeDateContext, injectContext } = require('./date-context');
 
 function buildContextPrompt(text) {
-  const { today, currentTime, weekStartStr, weekNum, year } = computeDateContext();
+  const { today, weekNum, year } = computeDateContext();
   const weekNumPadded = String(weekNum).padStart(2, '0');
   const weeklyNote = `Journal/${year}-W${weekNumPadded}.md`;
   const monthlyNote = `Journal/${today.slice(0, 7)}.md`;
   const dayHeader = `## [[${today}]]`;
   return {
     today,
-    prompt: `[Context: today is ${today}, current time is ${currentTime}, week starts ${weekStartStr}, week number ${weekNum}, day_header="${dayHeader}", weekly_note="${weeklyNote}", monthly_note="${monthlyNote}"]\n\n${text}`,
+    prompt: injectContext(text, { day_header: dayHeader, weekly_note: weeklyNote, monthly_note: monthlyNote }),
   };
 }
 

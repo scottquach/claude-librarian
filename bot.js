@@ -1,7 +1,8 @@
 const { spawn } = require('node:child_process');
 const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');
 const { dirname, join } = require('node:path');
-const { computeDateContext } = require('./src/date-context');
+const { injectContext } = require('./src/date-context');
+const { markdownToTelegramHtml } = require('./src/telegram-format');
 
 const CLAUDE_CONVERSATION_DIRECTORY_PATH = join(__dirname, 'conversations');
 
@@ -250,8 +251,7 @@ function createCommandHandler({
 
         const rawPrompt = getCommandPrompt(ctx.message?.text ?? '', commandName, defaultPrompt);
 
-        const { today, currentTime, weekStartStr, weekNum } = computeDateContext();
-        const prompt = `[Context: today is ${today}, current time is ${currentTime}, current week starts ${weekStartStr}, week number ${weekNum}]\n\n${rawPrompt}`;
+        const prompt = injectContext(rawPrompt);
 
         console.log(`[claude] running command prompt="${prompt.slice(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
 
@@ -261,7 +261,7 @@ function createCommandHandler({
             activeBotMap.set(chatId, botName);
             if (sessionDateMap) sessionDateMap.set(chatId, today);
             conversationStore.appendExchange({ assistantMessage: output, sessionId, userMessage: prompt });
-            await ctx.reply(output, { parse_mode: 'HTML' });
+            await ctx.reply(markdownToTelegramHtml(output), { parse_mode: 'HTML' });
         } catch (error) {
             console.error(`[claude] command failed error=${error.message}`);
             await ctx.reply('Claude command failed: ' + error.message);

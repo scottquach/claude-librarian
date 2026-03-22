@@ -11,6 +11,9 @@ createBotFromDirectory(bot, join(__dirname, 'bots'));
 
 console.log('Bot is running...');
 bot.launch();
+bot.on('message', (ctx) => {
+    console.log('Message received:', ctx.message.chat.id);
+});
 scheduleJobs(bot, join(__dirname, 'jobs'));
 
 process.once('SIGINT', () => bot.stop('SIGINT'));

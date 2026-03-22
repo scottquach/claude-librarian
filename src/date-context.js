@@ -23,4 +23,25 @@ function computeDateContext() {
   return { today, currentTime, weekStartStr, weekNum, year: weekStart.getFullYear() };
 }
 
-module.exports = { localDate, computeDateContext };
+/**
+ * Build a [Context: ...] string from the current date/time plus any caller-supplied extras.
+ * Extra entries are appended as  key="value"  pairs after the standard fields.
+ */
+function buildContextString(extras = {}) {
+  const { today, currentTime, weekStartStr, weekNum } = computeDateContext();
+  let context = `today is ${today}, current time is ${currentTime}, current week starts ${weekStartStr}, week number ${weekNum}`;
+  for (const [key, value] of Object.entries(extras)) {
+    context += `, ${key}="${value}"`;
+  }
+  return `[Context: ${context}]`;
+}
+
+/**
+ * Prepend a context header to a prompt string.
+ * Equivalent to `buildContextString(extras) + '\n\n' + prompt`.
+ */
+function injectContext(prompt, extras = {}) {
+  return `${buildContextString(extras)}\n\n${prompt}`;
+}
+
+module.exports = { localDate, computeDateContext, buildContextString, injectContext };
