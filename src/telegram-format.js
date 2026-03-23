@@ -28,6 +28,13 @@ function markdownToTelegramHtml(text) {
   result = result.replace(/\*([^*\n]+)\*/g, (_, t) => `<i>${t}</i>`);
   result = result.replace(/_([^_\n]+)_/g, (_, t) => `<i>${t}</i>`);
 
+  // 7. Markdown links [text](url)
+  result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => `<a href="${url}">${text}</a>`);
+
+  // 8. Checkboxes
+  result = result.replace(/- \[ \]/g, '- ⬜');
+  result = result.replace(/- \[x\]/gi, '- ✅');
+
   return result;
 }
 

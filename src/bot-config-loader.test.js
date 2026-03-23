@@ -1,33 +1,23 @@
 // src/bot-config-loader.test.js
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-  parseFrontmatter,
-  normalizeBotConfig,
-  loadBotConfig,
-  discoverBotConfigs,
-  loadAllBotConfigs,
-} = require('./bot-config-loader');
+const { parseFrontmatter, loadBotConfig } = require('./bot-config-loader');
 
 const SAMPLE_BOT_MD = `---
 name: journal
-description: Analyzes journals
 model: haiku
 tools:
   - Read
   - Edit
 directories:
   - /some/path
-commands:
-  - name: journal
-    description: Review notes
-    defaultPrompt: Review my latest note
 timeoutMs: 60000
-sessionIsolation: shared
 ---
 
 You are a journal assistant.
 `;
+
+// parseFrontmatter tests
 
 test('parseFrontmatter extracts frontmatter object and body', () => {
   const { frontmatter, body } = parseFrontmatter(SAMPLE_BOT_MD);
@@ -36,147 +26,120 @@ test('parseFrontmatter extracts frontmatter object and body', () => {
   assert.deepEqual(frontmatter.tools, ['Read', 'Edit']);
   assert.deepEqual(frontmatter.directories, ['/some/path']);
   assert.equal(frontmatter.timeoutMs, 60000);
-  assert.equal(frontmatter.sessionIsolation, 'shared');
   assert.match(body, /You are a journal assistant/);
-});
-
-test('parseFrontmatter parses commands array of objects', () => {
-  const { frontmatter } = parseFrontmatter(SAMPLE_BOT_MD);
-  assert.deepEqual(frontmatter.commands, [{
-    name: 'journal',
-    description: 'Review notes',
-    defaultPrompt: 'Review my latest note',
-  }]);
 });
 
 test('parseFrontmatter throws when file does not start with ---', () => {
   assert.throws(() => parseFrontmatter('no frontmatter here'), /frontmatter/i);
 });
 
-test('normalizeBotConfig applies defaults', () => {
-  const config = normalizeBotConfig(
-    { name: 'test', model: 'haiku', commands: [{ name: 'test', description: '', defaultPrompt: 'hello' }] },
-    'system prompt',
-    '/bots/test'
-  );
-  assert.equal(config.timeoutMs, 80000);
-  assert.equal(config.sessionIsolation, 'perCommand');
-  assert.deepEqual(config.tools, []);
-  assert.deepEqual(config.directories, []);
-  assert.equal(config.systemPrompt, 'system prompt');
-  assert.equal(config.configDir, '/bots/test');
-});
+// loadBotConfig tests
 
-test('normalizeBotConfig throws when name is missing', () => {
-  assert.throws(
-    () => normalizeBotConfig({ model: 'haiku', commands: [{ name: 'x', description: '', defaultPrompt: 'y' }] }, '', '/'),
-    /name/i
-  );
-});
+const SIMPLE_BOT_MD = `---
+name: librarian
+model: haiku
+tools:
+  - Read
+---
 
-test('normalizeBotConfig throws when model is missing', () => {
-  assert.throws(
-    () => normalizeBotConfig({ name: 'x', commands: [{ name: 'x', description: '', defaultPrompt: 'y' }] }, '', '/'),
-    /model/i
-  );
-});
+Bot instructions here.
+`;
 
-test('normalizeBotConfig throws when commands is empty', () => {
-  assert.throws(
-    () => normalizeBotConfig({ name: 'x', model: 'haiku', commands: [] }, '', '/'),
-    /commands/i
-  );
-});
-
-test('loadBotConfig reads BOT.md and returns BotConfig', () => {
+test('loadBotConfig loads BOT.md and returns config', () => {
+  const files = { '/project/BOT.md': SIMPLE_BOT_MD };
   const readFile = (p) => {
-    if (p.endsWith('BOT.md')) return SAMPLE_BOT_MD;
-    throw Object.assign(new Error('not found'), { code: 'ENOENT' });
+    if (files[p]) return files[p];
+    throw Object.assign(new Error(), { code: 'ENOENT' });
   };
-  const readdirSync = () => ['BOT.md'];
-  const config = loadBotConfig('/bots/journal/BOT.md', { readFile, readdirSync });
-  assert.equal(config.name, 'journal');
+  const readdirSync = () => { throw Object.assign(new Error(), { code: 'ENOENT' }); };
+
+  const config = loadBotConfig('/project/BOT.md', '/project/prompts', { readFile, readdirSync });
   assert.equal(config.model, 'haiku');
-  assert.equal(config.configDir, '/bots/journal');
+  assert.deepEqual(config.tools, ['Read']);
+  assert.match(config.systemPrompt, /Bot instructions here/);
 });
 
-test('loadBotConfig appends supplementary .md files alphabetically', () => {
-  const files = { 'BOT.md': SAMPLE_BOT_MD, 'extra.md': 'Extra context here.' };
+test('loadBotConfig appends supplementary .md files from prompts dir', () => {
+  const files = {
+    '/project/BOT.md': SIMPLE_BOT_MD,
+    '/project/prompts/formatting.md': 'Format rules here.',
+  };
   const readFile = (p) => {
-    const base = p.split('/').pop();
-    if (files[base]) return files[base];
+    if (files[p]) return files[p];
     throw Object.assign(new Error(), { code: 'ENOENT' });
   };
-  const readdirSync = () => ['BOT.md', 'extra.md'];
-  const config = loadBotConfig('/bots/journal/BOT.md', { readFile, readdirSync });
-  assert.match(config.systemPrompt, /You are a journal assistant/);
-  assert.match(config.systemPrompt, /Extra context here/);
+  const readdirSync = (d) => {
+    if (d === '/project/prompts') return ['formatting.md'];
+    return [];
+  };
+
+  const config = loadBotConfig('/project/BOT.md', '/project/prompts', { readFile, readdirSync });
+  assert.match(config.systemPrompt, /Bot instructions here/);
+  assert.match(config.systemPrompt, /Format rules here/);
 });
 
-test('loadBotConfig works when no supplementary files exist', () => {
+test('loadBotConfig prepends CLAUDE.md when it exists', () => {
+  const files = {
+    '/project/BOT.md': SIMPLE_BOT_MD,
+    '/project/CLAUDE.md': 'You are a helpful assistant.',
+  };
   const readFile = (p) => {
-    if (p.endsWith('BOT.md')) return SAMPLE_BOT_MD;
+    if (files[p]) return files[p];
     throw Object.assign(new Error(), { code: 'ENOENT' });
   };
-  const readdirSync = () => ['BOT.md'];
-  const config = loadBotConfig('/bots/journal/BOT.md', { readFile, readdirSync });
-  assert.match(config.systemPrompt, /You are a journal assistant/);
+  const readdirSync = () => { throw Object.assign(new Error(), { code: 'ENOENT' }); };
+
+  const config = loadBotConfig('/project/BOT.md', '/project/prompts', { readFile, readdirSync });
+  assert.match(config.systemPrompt, /You are a helpful assistant/);
+  assert.match(config.systemPrompt, /Bot instructions here/);
+  const identityIdx = config.systemPrompt.indexOf('You are a helpful assistant');
+  const botIdx = config.systemPrompt.indexOf('Bot instructions here');
+  assert.ok(identityIdx < botIdx, 'CLAUDE.md content should precede BOT.md content');
 });
 
-test('discoverBotConfigs finds BOT.md files recursively', () => {
-  const structure = {
-    '/bots': [{ name: 'journal', isDirectory: () => true }],
-    '/bots/journal': [{ name: 'BOT.md', isDirectory: () => false }],
+test('loadBotConfig works without CLAUDE.md or prompts dir', () => {
+  const files = { '/project/BOT.md': SIMPLE_BOT_MD };
+  const readFile = (p) => {
+    if (files[p]) return files[p];
+    throw Object.assign(new Error(), { code: 'ENOENT' });
   };
-  const readdirSync = (dir, opts) => structure[dir] ?? [];
-  const paths = discoverBotConfigs('/bots', { readdirSync });
-  assert.deepEqual(paths, ['/bots/journal/BOT.md']);
+  const readdirSync = () => { throw Object.assign(new Error(), { code: 'ENOENT' }); };
+
+  const config = loadBotConfig('/project/BOT.md', '/project/prompts', { readFile, readdirSync });
+  assert.match(config.systemPrompt, /Bot instructions here/);
 });
 
-test('discoverBotConfigs returns empty array for empty directory', () => {
-  const readdirSync = () => [];
-  const paths = discoverBotConfigs('/bots', { readdirSync });
-  assert.deepEqual(paths, []);
+test('loadBotConfig applies default timeoutMs', () => {
+  const files = { '/project/BOT.md': SIMPLE_BOT_MD };
+  const readFile = (p) => {
+    if (files[p]) return files[p];
+    throw Object.assign(new Error(), { code: 'ENOENT' });
+  };
+  const readdirSync = () => { throw Object.assign(new Error(), { code: 'ENOENT' }); };
+
+  const config = loadBotConfig('/project/BOT.md', '/project/prompts', { readFile, readdirSync });
+  assert.equal(config.timeoutMs, 80000);
 });
 
 test('loadBotConfig expands env vars in directories and systemPrompt', () => {
   const botMd = `---
 name: journal
-description: Test
 model: haiku
 directories:
   - \${VAULT_PATH}
-commands:
-  - name: journal
-    description: x
 ---
 
 Files live at \${VAULT_PATH}/Journal.
 `;
+  const files = { '/project/BOT.md': botMd };
   const readFile = (p) => {
-    if (p.endsWith('BOT.md')) return botMd;
+    if (files[p]) return files[p];
     throw Object.assign(new Error(), { code: 'ENOENT' });
   };
-  const readdirSync = () => ['BOT.md'];
+  const readdirSync = () => { throw Object.assign(new Error(), { code: 'ENOENT' }); };
   const env = { VAULT_PATH: '/my/vault' };
-  const config = loadBotConfig('/bots/journal/BOT.md', { readFile, readdirSync, env });
+
+  const config = loadBotConfig('/project/BOT.md', '/project/prompts', { readFile, readdirSync, env });
   assert.deepEqual(config.directories, ['/my/vault']);
   assert.match(config.systemPrompt, /\/my\/vault\/Journal/);
-});
-
-test('loadAllBotConfigs throws when two bots share the same name', () => {
-  // Create two BOT.md files with same name - should throw with both paths listed
-  const botMd = `---\nname: dup\nmodel: haiku\ncommands:\n  - name: dup\n    description: x\n    defaultPrompt: x\n---\nPrompt.`;
-  const readFile = () => botMd;
-  const readdirSync = (dir, opts) => {
-    if (dir === '/bots') return [
-      { name: 'a', isDirectory: () => true },
-      { name: 'b', isDirectory: () => true },
-    ];
-    return [{ name: 'BOT.md', isDirectory: () => false }];
-  };
-  assert.throws(
-    () => loadAllBotConfigs('/bots', { readFile, readdirSync }),
-    /dup/i
-  );
 });

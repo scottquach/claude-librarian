@@ -57,3 +57,22 @@ test('leaves bullet dashes and newlines intact', () => {
   const input = '- item one\n- item two';
   assert.equal(markdownToTelegramHtml(input), '- item one\n- item two');
 });
+
+test('converts markdown link to <a> tag', () => {
+  assert.equal(
+    markdownToTelegramHtml('See [Google](https://google.com) for more'),
+    'See <a href="https://google.com">Google</a> for more',
+  );
+});
+
+test('converts unchecked checkbox to ⬜', () => {
+  assert.equal(markdownToTelegramHtml('- [ ] Buy groceries'), '- ⬜ Buy groceries');
+});
+
+test('converts checked checkbox to ✅', () => {
+  assert.equal(markdownToTelegramHtml('- [x] Buy groceries'), '- ✅ Buy groceries');
+});
+
+test('converts uppercase [X] checkbox to ✅', () => {
+  assert.equal(markdownToTelegramHtml('- [X] Done task'), '- ✅ Done task');
+});

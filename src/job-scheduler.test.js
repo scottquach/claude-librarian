@@ -108,6 +108,18 @@ function makeFakeBot(chatId = '999') {
   };
 }
 
+test('scheduleJobs throws when runClaudeCommand is not provided', () => {
+  const fakeCron = makeFakeCron();
+  assert.throws(
+    () => scheduleJobs(makeFakeBot(), '/fake/jobs', {
+      cron: fakeCron,
+      readdir: () => [],
+      readFile: () => '',
+    }),
+    /runClaudeCommand/
+  );
+});
+
 test('scheduleJobs schedules one cron job per job config', () => {
   const files = {
     'job-a.md': `---\nname: job-a\ncron: "0 9 * * *"\n---\n\nDo A.\n`,

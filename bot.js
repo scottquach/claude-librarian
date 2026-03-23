@@ -1,8 +1,6 @@
 const { query } = require('@anthropic-ai/claude-agent-sdk');
 const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');
 const { dirname, join } = require('node:path');
-const { computeDateContext, injectContext } = require('./src/date-context');
-const { markdownToTelegramHtml } = require('./src/telegram-format');
 
 const CLAUDE_CONVERSATION_DIRECTORY_PATH = join(__dirname, 'conversations');
 
@@ -97,12 +95,6 @@ function createClaudeConversationStore({
     };
 }
 
-function getCommandPrompt(text = '', commandName, defaultPrompt) {
-    const match = text.match(new RegExp(`^\\/` + commandName + `(?:@\\S+)?(?:\\s+([\\s\\S]*))?$`));
-    const prompt = match?.[1]?.trim();
-    return prompt || defaultPrompt;
-}
-
 const c = {
     reset: '\x1b[0m',
     dim: '\x1b[2m',
@@ -181,49 +173,7 @@ function createClaudeCommandRunner({ model = 'haiku', tools = [], directories = 
     };
 }
 
-function createCommandHandler({
-    commandName,
-    defaultPrompt,
-    conversationStore = createClaudeConversationStore(),
-    runClaudeCommand,
-    botName = 'default',
-    activeBotMap = new Map(),
-    sessionDateMap = null,
-    sessionIdMap = null,
-}) {
-    return async function handleCommand(ctx) {
-        const chatId = String(ctx.chat?.id ?? 'global');
-        const username = ctx.from?.username ?? ctx.from?.id ?? 'unknown';
-
-        console.log(`[command] /${commandName} received from user=${username} chatId=${chatId}`);
-
-        const rawPrompt = getCommandPrompt(ctx.message?.text ?? '', commandName, defaultPrompt);
-
-        const prompt = injectContext(rawPrompt);
-
-        console.log(`[claude] running command prompt="${prompt.slice(0, 100)}${prompt.length > 100 ? '...' : ''}"`);
-
-        try {
-            const { output, sessionId } = await runClaudeCommand({ prompt, sessionId: null });
-            console.log(`[claude] command succeeded sessionId=${sessionId} outputLength=${output.length}`);
-            activeBotMap.set(chatId, botName);
-            if (sessionDateMap) {
-                const { today } = computeDateContext();
-                sessionDateMap.set(chatId, today);
-            }
-            if (sessionIdMap) sessionIdMap.set(chatId, sessionId);
-            conversationStore.appendExchange({ assistantMessage: output, sessionId, userMessage: prompt });
-            await ctx.reply(markdownToTelegramHtml(output), { parse_mode: 'HTML' });
-        } catch (error) {
-            console.error(`[claude] command failed error=${error.message}`);
-            await ctx.reply('Claude command failed: ' + error.message);
-        }
-    };
-}
-
 module.exports = {
     createClaudeCommandRunner,
     createClaudeConversationStore,
-    createCommandHandler,
-    getCommandPrompt,
 };

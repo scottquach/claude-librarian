@@ -2,7 +2,6 @@ const { parseFrontmatter } = require('./bot-config-loader');
 const nodeCron = require('node-cron');
 const { readFileSync, readdirSync } = require('node:fs');
 const { join } = require('node:path');
-const { createClaudeCommandRunner } = require('../bot');
 const { injectContext } = require('./date-context');
 const { markdownToTelegramHtml } = require('./telegram-format');
 
@@ -40,10 +39,13 @@ function loadJobConfigs(jobsDir, opts = {}) {
 function scheduleJobs(bot, jobsDir, opts = {}) {
   const cron = opts.cron ?? nodeCron;
   const defaultChatId = opts.defaultChatId ?? process.env.DEFAULT_CHAT_ID;
-  const vaultPath = opts.vaultPath ?? process.env.VAULT_PATH;
-  const directories = vaultPath ? [vaultPath] : [];
+  const runClaudeCommand = opts.runClaudeCommand;
   const sessionIdMap = opts.sessionIdMap ?? null;
   const conversationStore = opts.conversationStore ?? null;
+
+  if (!runClaudeCommand) {
+    throw new Error('scheduleJobs requires a runClaudeCommand option');
+  }
 
   const jobs = loadJobConfigs(jobsDir, {
     readdir: opts.readdir,
@@ -51,7 +53,6 @@ function scheduleJobs(bot, jobsDir, opts = {}) {
   });
 
   for (const job of jobs) {
-    const runClaudeCommand = opts.runClaudeCommand ?? createClaudeCommandRunner({ model: job.model, directories });
     const chatId = String(defaultChatId ?? 'global');
     cron.schedule(job.cron, async () => {
       console.log(`[job] running: ${job.name}`);
