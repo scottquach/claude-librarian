@@ -140,6 +140,7 @@ function createClaudeCommandRunner({ model = 'haiku', tools = [], directories = 
         let result = null;
 
         console.log("directories", directories);
+        console.log("claude path", process.env.CLAUDE_PATH ?? 'claude');
 
         const options = {
             pathToClaudeCodeExecutable: process.env.CLAUDE_PATH ?? 'claude',
