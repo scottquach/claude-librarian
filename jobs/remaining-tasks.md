@@ -1,7 +1,6 @@
 ---
 name: remaining-tasks-reminder
-# cron: "0 18 * * *"
-cron: "* * * * *"
+cron: "0 18 * * *"
 telegram: true
 model: haiku
 ---
