@@ -84,10 +84,7 @@ function createClaudeConversationStore({
                 readFile,
             });
 
-            entries.push(
-                { content: userMessage, role: 'user' },
-                { content: assistantMessage, role: 'assistant' },
-            );
+            entries.push({ content: userMessage, role: 'user' }, { content: assistantMessage, role: 'assistant' });
 
             writeConversationEntries({
                 conversationDirectoryPath,
@@ -106,7 +103,14 @@ function getCommandPrompt(text = '', commandName, defaultPrompt) {
     return prompt || defaultPrompt;
 }
 
-const c = { reset: '\x1b[0m', dim: '\x1b[2m', cyan: '\x1b[36m', yellow: '\x1b[33m', green: '\x1b[32m', magenta: '\x1b[35m' };
+const c = {
+    reset: '\x1b[0m',
+    dim: '\x1b[2m',
+    cyan: '\x1b[36m',
+    yellow: '\x1b[33m',
+    green: '\x1b[32m',
+    magenta: '\x1b[35m',
+};
 
 function logStreamEvent(event) {
     const type = event.type;
@@ -127,7 +131,7 @@ function logStreamEvent(event) {
     } else if (type === 'tool_result' || (type === 'user' && event.message?.content?.[0]?.type === 'tool_result')) {
         const results = type === 'tool_result' ? [event] : event.message.content;
         for (const r of results) {
-            const content = Array.isArray(r.content) ? r.content.map(c => c.text ?? '').join('') : (r.content ?? '');
+            const content = Array.isArray(r.content) ? r.content.map((c) => c.text ?? '').join('') : (r.content ?? '');
             const preview = content.slice(0, 120).replace(/\n/g, ' ');
             process.stdout.write(`${c.yellow}[result] ${preview}${content.length > 120 ? '…' : ''}${c.reset}\n`);
         }
@@ -138,15 +142,12 @@ function logStreamEvent(event) {
     }
 }
 
-function createClaudeCommandRunner({
-    model = 'haiku',
-    tools = [],
-    directories = [],
-    systemPrompt = '',
-} = {}) {
+function createClaudeCommandRunner({ model = 'haiku', tools = [], directories = [], systemPrompt = '' } = {}) {
     return async function runClaudeCommand({ prompt = '', sessionId = null } = {}) {
         let newSessionId = sessionId;
         let result = null;
+
+        console.log("directories", directories);
 
         const options = {
             pathToClaudeCodeExecutable: process.env.CLAUDE_PATH ?? 'claude',
@@ -171,9 +172,7 @@ function createClaudeCommandRunner({
                 if (message.subtype === 'success') {
                     result = message.result ?? '';
                 } else {
-                    throw new Error(
-                        message.errors?.join('; ') ?? `Claude ended with subtype: ${message.subtype}`
-                    );
+                    throw new Error(message.errors?.join('; ') ?? `Claude ended with subtype: ${message.subtype}`);
                 }
             }
         }

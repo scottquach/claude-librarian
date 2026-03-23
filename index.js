@@ -7,14 +7,14 @@ const { scheduleJobs } = require('./src/job-scheduler');
 const token = process.env.BOT_TOKEN;
 const bot = new Telegraf(token);
 
-createBotFromDirectory(bot, join(__dirname, 'bots'));
+const { sessionIdMap, conversationStore } = createBotFromDirectory(bot, join(__dirname, 'bots'));
 
 console.log('Bot is running...');
 bot.launch();
 bot.on('message', (ctx) => {
     console.log('Message received:', ctx.message.chat.id);
 });
-scheduleJobs(bot, join(__dirname, 'jobs'));
+scheduleJobs(bot, join(__dirname, 'jobs'), { sessionIdMap, conversationStore });
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));

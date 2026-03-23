@@ -1,1 +1,0 @@
-Always start a response with "JELLO" and then rest of message

@@ -42,6 +42,8 @@ function scheduleJobs(bot, jobsDir, opts = {}) {
   const defaultChatId = opts.defaultChatId ?? process.env.DEFAULT_CHAT_ID;
   const vaultPath = opts.vaultPath ?? process.env.VAULT_PATH;
   const directories = vaultPath ? [vaultPath] : [];
+  const sessionIdMap = opts.sessionIdMap ?? null;
+  const conversationStore = opts.conversationStore ?? null;
 
   const jobs = loadJobConfigs(jobsDir, {
     readdir: opts.readdir,
@@ -50,12 +52,18 @@ function scheduleJobs(bot, jobsDir, opts = {}) {
 
   for (const job of jobs) {
     const runClaudeCommand = opts.runClaudeCommand ?? createClaudeCommandRunner({ model: job.model, directories });
+    const chatId = String(defaultChatId ?? 'global');
     cron.schedule(job.cron, async () => {
       console.log(`[job] running: ${job.name}`);
       try {
         const prompt = injectContext(job.prompt);
-        const { output } = await runClaudeCommand({ prompt });
-        console.log(`[job] completed: ${job.name} ${job.telegram}`);
+        const existingSessionId = sessionIdMap?.get(chatId) ?? null;
+        const { output, sessionId } = await runClaudeCommand({ prompt, sessionId: existingSessionId });
+        console.log(`[job] completed: ${job.name} ${job.telegram} sessionId=${sessionId}`);
+        if (sessionIdMap) sessionIdMap.set(chatId, sessionId);
+        if (conversationStore) {
+          conversationStore.appendExchange({ assistantMessage: output, sessionId, userMessage: prompt });
+        }
         if (job.telegram && defaultChatId) {
           await bot.telegram.sendMessage(defaultChatId, markdownToTelegramHtml(output), { parse_mode: 'HTML' })
             .catch((err) => console.error(`[job] telegram send failed: ${err.message}`));

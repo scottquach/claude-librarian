@@ -209,7 +209,7 @@ function createBotFromDirectory(telegramBot, botsDir, opts = {}) {
     return ctx.reply(lines.length ? lines.join('\n') : 'No commands registered.');
   });
 
-  return telegramBot;
+  return { telegramBot, sessionIdMap, sessionDateMap, activeBotMap, conversationStore };
 }
 
 module.exports = {
