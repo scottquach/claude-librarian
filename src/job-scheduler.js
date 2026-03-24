@@ -62,12 +62,13 @@ function scheduleJobs(bot, jobsDir, opts = {}) {
                     const prompt = injectContext(job.prompt);
                     const existingSessionId = sessionIdMap?.get(chatId) ?? null;
                     const { output, sessionId } = await runClaudeCommand({ prompt, sessionId: existingSessionId });
-                    console.log(`[job] completed: ${job.name} ${job.telegram} sessionId=${sessionId}`);
+                    const shouldSkip = output.trimStart().startsWith('[SKIP]');
+                    console.log(`[job] completed: ${job.name} ${job.telegram} sessionId=${sessionId}${shouldSkip ? ' (skipped)' : ''}`);
                     if (sessionIdMap) sessionIdMap.set(chatId, sessionId);
-                    if (conversationStore) {
+                    if (conversationStore && !shouldSkip) {
                         conversationStore.appendExchange({ assistantMessage: output, sessionId, userMessage: prompt });
                     }
-                    if (job.telegram && defaultChatId) {
+                    if (job.telegram && defaultChatId && !shouldSkip) {
                         await bot.telegram
                             .sendMessage(defaultChatId, markdownToTelegramHtml(output), { parse_mode: 'HTML' })
                             .catch((err) => console.error(`[job] telegram send failed: ${err.message}`));

@@ -38,7 +38,7 @@ Example output: `#mood 09:34 feeling energized after morning walk`
 - [ ] <task>
 ```
 
-**Grocery list** — when the user mentions grocery items, or ingredients to pick up. These go under a `## Grocery list` heading in the weekly note (NOT under the day header). If the heading doesn't exist yet, create it at the top of the file. Append items as a checklist:
+**Grocery list** — when the user mentions grocery items, food items, or ingredients to buy. These go under a `## Grocery list` heading in the weekly note (NOT under the day header). If the heading doesn't exist yet, create it at the top of the file. Append items as a checklist:
 
 ```
 - [ ] <item>

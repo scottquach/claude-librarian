@@ -51,6 +51,21 @@ Within a weekly file, content is organized under day headings (`## [[YYYY-MM-DD]
 
 If you would like to modify the vault structure or behavior you can ask claude to update @BOT.md. Be as descriptive as possible with your own journal setup.
 
+## Jobs
+
+Jobs are defined as `.md` files in the `jobs/` directory with a YAML frontmatter header:
+
+| Field | Required | Description |
+|---|---|---|
+| `name` | Yes | Identifier used in logs |
+| `cron` | Yes | Cron expression for the schedule |
+| `telegram` | No | Set to `true` to send output to your Telegram chat |
+| `model` | No | Claude model to use (defaults to `haiku`) |
+
+The body of the file is the prompt Claude receives when the job runs.
+
+**Suppressing output:** If a job has nothing to report, instruct Claude to output exactly `[SKIP]`. The scheduler will suppress the Telegram message and skip writing to the conversation store. Useful for jobs that are only relevant when something actually needs attention.
+
 ## Setup
 
 Run claude code in the directory and type `/setup` and claude will walkthrough environment setup and configurations

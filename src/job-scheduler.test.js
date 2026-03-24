@@ -181,6 +181,26 @@ test('scheduleJobs does not send to Telegram when telegram is false', async () =
   assert.equal(fakeBot.sent.length, 0);
 });
 
+test('scheduleJobs does not send to Telegram when output starts with [SKIP]', async () => {
+  const files = {
+    'skip-job.md': `---\nname: skip-job\ncron: "0 9 * * *"\ntelegram: true\n---\n\nDo something.\n`,
+  };
+  const fakeCron = makeFakeCron();
+  const fakeBot = makeFakeBot('42');
+
+  scheduleJobs(fakeBot, '/fake/jobs', {
+    cron: fakeCron,
+    readdir: () => Object.keys(files),
+    readFile: (p) => files[require('node:path').basename(p)],
+    runClaudeCommand: async () => ({ output: '[SKIP]', sessionId: 'x' }),
+    defaultChatId: '42',
+  });
+
+  await fakeCron.scheduled[0].callback();
+
+  assert.equal(fakeBot.sent.length, 0);
+});
+
 test('scheduleJobs sends error to Telegram when job fails and telegram is true', async () => {
   const files = {
     'failing-job.md': `---\nname: failing-job\ncron: "0 9 * * *"\ntelegram: true\n---\n\nDo something.\n`,
