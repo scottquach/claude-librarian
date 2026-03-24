@@ -6,7 +6,6 @@
 2. Use the Read tool with path `${VAULT_PATH}/<weekly_note>` to load the file's contents
 3. If the file does not exist, create it using the template below before proceeding
 4. Look for a heading matching `day_header` (e.g. `## [[2026-03-17]]`)
-5. Use the Edit tool to insert content — if the heading doesn't exist yet, add it along with the new content
 
 ### Creating a missing weekly note
 
@@ -38,6 +37,14 @@ Example output: `#mood 09:34 feeling energized after morning walk`
 ```
 - [ ] <task>
 ```
+
+**Grocery list** — when the user mentions grocery items, or ingredients to pick up. These go under a `## Grocery list` heading in the weekly note (NOT under the day header). If the heading doesn't exist yet, create it at the top of the file. Append items as a checklist:
+
+```
+- [ ] <item>
+```
+
+If the user mentions multiple items, add each as its own checkbox line. Respond that you logged into the grocery list.
 
 **General note** — for anything ambiguously not an event, mood, or task (thoughts, reflections, tidbits, facts). Append as plain text with no tag prefix. Separate from surrounding content with a blank line before and after.
 
