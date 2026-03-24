@@ -54,7 +54,19 @@ If any bot has directories configured:
 - If they provide a new path: update the `directories:` value in that bot's BOT.md frontmatter, and also update any hardcoded absolute paths in the body of the prompt (e.g. `Journal files live in /...`)
 - Apply the same replacement to all supplementary `.md` files in that bot's directory
 
-### 6. Bots directory
+### 6. Scheduled jobs (DEFAULT_CHAT_ID)
+
+Read `.env` to check if `DEFAULT_CHAT_ID` is already set.
+Check if any files exist in the `jobs/` directory.
+
+If jobs exist AND `DEFAULT_CHAT_ID` is NOT set:
+- Ask: "You have scheduled jobs that send Telegram messages. What is your Telegram chat ID? (You can get it by messaging @userinfobot on Telegram.) Enter your chat ID, or press Enter to skip:"
+- If they provide a value: add/update `DEFAULT_CHAT_ID=<id>` in `.env`
+- If they skip: note that jobs with `telegram: true` won't know where to send messages
+
+If no jobs exist: skip this step silently.
+
+### 8. Bots directory
 
 Use Glob to find all `bots/*/BOT.md` files.
 
@@ -82,7 +94,7 @@ You are a helpful assistant.
 
 If bots exist: list their names and commands — e.g. "Found: journal (/journal)"
 
-### 7. Summary
+### 9. Summary
 
 Print a setup summary:
 - Prerequisites: ✓ / ✗
@@ -90,6 +102,7 @@ Print a setup summary:
 - Timezone: configured (show value) / defaulted to America/Chicago
 - Voice (Whisper): configured / skipped
 - Vault/directory paths: updated / unchanged
+- Scheduled jobs (DEFAULT_CHAT_ID): configured / skipped / not needed
 - Bots: list names and their commands
 - How to run: `node index.js`
 

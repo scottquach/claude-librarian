@@ -18,9 +18,11 @@ It also supports basic retrieval activities and appending to other notes, though
 | Variable | Required | Description |
 |---|---|---|
 | `BOT_TOKEN` | Yes | Telegram bot token from [@BotFather](https://t.me/BotFather) |
-| `OPENAI_API_KEY` | No | OpenAI API key — used by Whisper to transcribe voice messages. Omitting disables voice memo functionality |
 | `BOT_TIMEZONE` | Yes | IANA timezone string (e.g. `America/Los_Angeles`) — controls the date/time injected into every Claude prompt |
-| `VAULT_PATH` | Yes | Absolute path to your Obsidian vault — Claude reads and writes journal files here |
+| `VAULT_PATH` | Yes | Absolute path to your Obsidian vault — used in `BOT.md` to grant Claude file access and set base paths |
+| `OPENAI_API_KEY` | No | OpenAI API key — used by Whisper to transcribe voice messages. Omitting disables voice memo functionality |
+| `DEFAULT_CHAT_ID` | No | Telegram chat ID to send proactive/scheduled messages to. Required if you use jobs with `telegram: true` |
+| `CLAUDE_PATH` | No | Path to the Claude Code CLI executable. Defaults to `claude` (assumes it's on your PATH) |
 
 `BOT_TIMEZONE` is important for journaling accuracy. Without it, "today" and the current time would default to UTC, causing entries to land in the wrong day heading.
 
