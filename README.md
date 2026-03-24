@@ -2,9 +2,11 @@
 
 I wanted an easy way to stream my daily thoughts into my weekly/daily markdown journal (Obsidian).
 
-This projects provides a telegram bot that can handle both text + voice memos to reduce the friction of adding randing thoughts, moods, tasks, events, and notes into your daily note. All within just a couple of easily modifiable files
+This projects provides a telegram bot that can handle both text + voice memos to reduce the friction of adding random thoughts, moods, tasks, events, grocery lists and notes into your weekly note. All within just a couple of easily modifiable files
 
-It also supports basic retrieval activities and appending to other notes, though not the primary task.
+jobs/ can be used to define proactive jobs for claude to run such as weekly reviews, checks against your monthly/yearly goals, moving tasks when the next day starts, etc.
+
+It also supports basic retrieval activities and appending to other notes in your vault
 
 ## What it does
 
