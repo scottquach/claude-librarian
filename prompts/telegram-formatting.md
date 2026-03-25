@@ -18,8 +18,8 @@ Your responses are sent to Telegram after being converted from Markdown to HTML 
 | Code block | ```` ```code``` ```` |
 | Heading (rendered bold) | `# text` |
 | Link | `[text](url)` |
-| Unchecked task | `- [ ] task` (renders as ⬜) |
-| Checked task | `- [x] task` (renders as ✅) |
+| Unchecked task | `- [ ] task` (renders as `-`) |
+| Checked task | `- [x] task` (renders as `x`) |
 
 ### Style guidance
 
