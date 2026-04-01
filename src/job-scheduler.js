@@ -2,7 +2,6 @@ const { parseFrontmatter } = require('./bot-config-loader');
 const nodeCron = require('node-cron');
 const { readFileSync, readdirSync } = require('node:fs');
 const { join } = require('node:path');
-const { injectContext } = require('./date-context');
 const { markdownToTelegramHtml } = require('./telegram-format');
 
 function parseJobConfig(fileContent) {
@@ -58,8 +57,7 @@ function scheduleJobs(bot, jobsDir, opts = {}) {
             async () => {
                 console.log(`[job] running: ${job.name}`);
                 try {
-                    const prompt = injectContext(job.prompt);
-                    const promptWithContext = conversationStore?.buildPrompt({ chatId, currentInput: prompt }) ?? prompt;
+                    const promptWithContext = conversationStore?.buildPrompt({ chatId, currentInput: job.prompt }) ?? job.prompt;
                     const { output } = await runClaudeCommand({ prompt: promptWithContext });
                     const shouldSkip = output.trimStart().startsWith('[SKIP]');
                     console.log(`[job] completed: ${job.name} ${job.telegram}${shouldSkip ? ' (skipped)' : ''}`);
@@ -68,7 +66,7 @@ function scheduleJobs(bot, jobsDir, opts = {}) {
                             assistantMessage: output,
                             chatId,
                             source: `job:${job.name}`,
-                            userMessage: prompt,
+                            userMessage: job.prompt,
                         });
                     }
                     if (job.telegram && defaultChatId && !shouldSkip) {

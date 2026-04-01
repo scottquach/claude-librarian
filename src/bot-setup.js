@@ -1,19 +1,6 @@
 // src/bot-setup.js
 const { message } = require('telegraf/filters');
-const { computeDateContext, injectContext } = require('./date-context');
 const { markdownToTelegramHtml } = require('./telegram-format');
-
-function buildContextPrompt(text) {
-    const { today, weekNum, year } = computeDateContext();
-    const weekNumPadded = String(weekNum).padStart(2, '0');
-    const weeklyNote = `Journal/${year}-W${weekNumPadded}.md`;
-    const monthlyNote = `Journal/${today.slice(0, 7)}.md`;
-    const dayHeader = `## [[${today}]]`;
-    return {
-        today,
-        prompt: injectContext(text, { day_header: dayHeader, weekly_note: weeklyNote, monthly_note: monthlyNote }),
-    };
-}
 
 async function handleMessage(ctx, text, { runClaudeCommand, conversationStore }) {
     const chatId = String(ctx.chat?.id ?? 'global');
@@ -21,8 +8,8 @@ async function handleMessage(ctx, text, { runClaudeCommand, conversationStore })
 
     console.log(`[message] from user=${username} chatId=${chatId}`);
 
-    const { prompt } = buildContextPrompt(text);
-    const promptWithContext = conversationStore.buildPrompt({ chatId, currentInput: prompt });
+    const promptWithContext = conversationStore.buildPrompt({ chatId, currentInput: text });
+    console.log("promptWithContext", promptWithContext);
 
     try {
         const { output } = await runClaudeCommand({ prompt: promptWithContext });
@@ -31,7 +18,7 @@ async function handleMessage(ctx, text, { runClaudeCommand, conversationStore })
             assistantMessage: output,
             chatId,
             source: 'telegram',
-            userMessage: prompt,
+            userMessage: text,
         });
         await ctx.reply(markdownToTelegramHtml(output), { parse_mode: 'HTML' });
     } catch (error) {
@@ -69,4 +56,4 @@ function setupBot(telegramBot, { runClaudeCommand, conversationStore, transcribe
     telegramBot.help((ctx) => ctx.reply("Send me a message and I'll log it to your journal."));
 }
 
-module.exports = { setupBot, buildContextPrompt };
+module.exports = { setupBot };

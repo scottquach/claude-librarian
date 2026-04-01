@@ -1,5 +1,6 @@
 const { mkdirSync, readFileSync, renameSync, writeFileSync } = require('node:fs');
 const { dirname, join } = require('node:path');
+const { buildContextString, computeDateContext } = require('./date-context');
 
 const CONVERSATION_STATE_VERSION = 1;
 const DEFAULT_MAX_MESSAGES = 40;
@@ -132,7 +133,16 @@ function createConversationStateStore({
     function buildPrompt({ chatId, currentInput, contextWindow = DEFAULT_CONTEXT_WINDOW }) {
         const state = load(chatId);
         const contextBlock = buildContextBlock(state, { contextWindow });
-        return `${contextBlock}\n\nCurrent input:\n${currentInput}`;
+
+        const { today, weekNum, year } = computeDateContext();
+        const weekNumPadded = String(weekNum).padStart(2, '0');
+        const dateContext = buildContextString({
+            day_header: `## [[${today}]]`,
+            weekly_note: `Journal/${year}-W${weekNumPadded}.md`,
+            monthly_note: `Journal/${today.slice(0, 7)}.md`,
+        });
+
+        return `${dateContext}\n\n${contextBlock}\n\nCurrent input:\n${currentInput}`;
     }
 
     function replaceWithCompaction({ chatId, messages = [], summary = '' }) {
