@@ -40,7 +40,6 @@ function scheduleJobs(bot, jobsDir, opts = {}) {
     const cron = opts.cron ?? nodeCron;
     const defaultChatId = opts.defaultChatId ?? process.env.DEFAULT_CHAT_ID;
     const runClaudeCommand = opts.runClaudeCommand;
-    const sessionIdMap = opts.sessionIdMap ?? null;
     const conversationStore = opts.conversationStore ?? null;
 
     if (!runClaudeCommand) {
@@ -60,13 +59,17 @@ function scheduleJobs(bot, jobsDir, opts = {}) {
                 console.log(`[job] running: ${job.name}`);
                 try {
                     const prompt = injectContext(job.prompt);
-                    const existingSessionId = sessionIdMap?.get(chatId) ?? null;
-                    const { output, sessionId } = await runClaudeCommand({ prompt, sessionId: existingSessionId });
+                    const promptWithContext = conversationStore?.buildPrompt({ chatId, currentInput: prompt }) ?? prompt;
+                    const { output } = await runClaudeCommand({ prompt: promptWithContext });
                     const shouldSkip = output.trimStart().startsWith('[SKIP]');
-                    console.log(`[job] completed: ${job.name} ${job.telegram} sessionId=${sessionId}${shouldSkip ? ' (skipped)' : ''}`);
-                    if (sessionIdMap) sessionIdMap.set(chatId, sessionId);
+                    console.log(`[job] completed: ${job.name} ${job.telegram}${shouldSkip ? ' (skipped)' : ''}`);
                     if (conversationStore && !shouldSkip) {
-                        conversationStore.appendExchange({ assistantMessage: output, sessionId, userMessage: prompt });
+                        conversationStore.appendTurn({
+                            assistantMessage: output,
+                            chatId,
+                            source: `job:${job.name}`,
+                            userMessage: prompt,
+                        });
                     }
                     if (job.telegram && defaultChatId && !shouldSkip) {
                         await bot.telegram

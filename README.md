@@ -64,7 +64,18 @@ Jobs are defined as `.md` files in the `jobs/` directory with a YAML frontmatter
 
 The body of the file is the prompt Claude receives when the job runs.
 
-**Suppressing output:** If a job has nothing to report, instruct Claude to output exactly `[SKIP]`. The scheduler will suppress the Telegram message and skip writing to the conversation store. Useful for jobs that are only relevant when something actually needs attention.
+**Suppressing output:** If a job has nothing to report, instruct Claude to output exactly `[SKIP]`. The scheduler will suppress the Telegram message and skip writing that turn to conversation state. Useful for jobs that are only relevant when something actually needs attention.
+
+## Conversation continuity
+
+Conversation history is stored on disk as one file per chat in `conversations/chats/<chatId>.json`.
+
+Each file contains:
+- `summary` for compacted memory
+- `messages` for recent user/assistant turns
+- metadata like `version`, `chatId`, and `updatedAt`
+
+Before each Claude call (user message or scheduled job), the bot builds prompt context from the stored summary and recent messages for that chat. This makes follow-up behavior durable across process restarts and enables future jobs to trim or compact older history.
 
 ## Setup
 

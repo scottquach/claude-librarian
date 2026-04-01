@@ -131,7 +131,7 @@ test('scheduleJobs schedules one cron job per job config', () => {
     cron: fakeCron,
     readdir: () => Object.keys(files),
     readFile: (p) => files[require('node:path').basename(p)],
-    runClaudeCommand: async () => ({ output: 'done', sessionId: 'x' }),
+    runClaudeCommand: async () => ({ output: 'done' }),
   });
 
   assert.equal(fakeCron.scheduled.length, 2);
@@ -150,7 +150,7 @@ test('scheduleJobs sends output to Telegram when telegram is true', async () => 
     cron: fakeCron,
     readdir: () => Object.keys(files),
     readFile: (p) => files[require('node:path').basename(p)],
-    runClaudeCommand: async () => ({ output: 'task result', sessionId: 'x' }),
+    runClaudeCommand: async () => ({ output: 'task result' }),
     defaultChatId: '42',
   });
 
@@ -172,7 +172,7 @@ test('scheduleJobs does not send to Telegram when telegram is false', async () =
     cron: fakeCron,
     readdir: () => Object.keys(files),
     readFile: (p) => files[require('node:path').basename(p)],
-    runClaudeCommand: async () => ({ output: 'quiet result', sessionId: 'x' }),
+    runClaudeCommand: async () => ({ output: 'quiet result' }),
     defaultChatId: '42',
   });
 
@@ -192,7 +192,7 @@ test('scheduleJobs does not send to Telegram when output starts with [SKIP]', as
     cron: fakeCron,
     readdir: () => Object.keys(files),
     readFile: (p) => files[require('node:path').basename(p)],
-    runClaudeCommand: async () => ({ output: '[SKIP]', sessionId: 'x' }),
+    runClaudeCommand: async () => ({ output: '[SKIP]' }),
     defaultChatId: '42',
   });
 
@@ -221,4 +221,73 @@ test('scheduleJobs sends error to Telegram when job fails and telegram is true',
   assert.equal(fakeBot.sent.length, 1);
   assert.match(fakeBot.sent[0].text, /failing-job.*failed/i);
   assert.match(fakeBot.sent[0].text, /claude exploded/);
+});
+
+test('scheduleJobs uses conversation store prompt context and appends job exchange', async () => {
+  const files = {
+    'context-job.md': `---\nname: context-job\ncron: "0 9 * * *"\ntelegram: false\n---\n\nDo something.\n`,
+  };
+  const fakeCron = makeFakeCron();
+  const fakeBot = makeFakeBot('42');
+  const calls = [];
+  const fakeStore = {
+    buildPrompt({ chatId, currentInput }) {
+      calls.push({ type: 'buildPrompt', chatId, currentInput });
+      return `context:\n${currentInput}`;
+    },
+    appendTurn(payload) {
+      calls.push({ type: 'appendTurn', payload });
+    },
+  };
+
+  scheduleJobs(fakeBot, '/fake/jobs', {
+    cron: fakeCron,
+    readdir: () => Object.keys(files),
+    readFile: (p) => files[require('node:path').basename(p)],
+    runClaudeCommand: async ({ prompt }) => {
+      calls.push({ type: 'runClaudeCommand', prompt });
+      return { output: 'job output' };
+    },
+    defaultChatId: '42',
+    conversationStore: fakeStore,
+  });
+
+  await fakeCron.scheduled[0].callback();
+
+  assert.equal(calls[0].type, 'buildPrompt');
+  assert.equal(calls[0].chatId, '42');
+  assert.match(calls[1].prompt, /^context:/);
+  assert.equal(calls[2].type, 'appendTurn');
+  assert.equal(calls[2].payload.chatId, '42');
+  assert.equal(calls[2].payload.source, 'job:context-job');
+  assert.equal(calls[2].payload.assistantMessage, 'job output');
+});
+
+test('scheduleJobs does not append skipped output to conversation store', async () => {
+  const files = {
+    'skip-job.md': `---\nname: skip-job\ncron: "0 9 * * *"\ntelegram: false\n---\n\nDo something.\n`,
+  };
+  const fakeCron = makeFakeCron();
+  let appended = false;
+  const fakeStore = {
+    buildPrompt({ currentInput }) {
+      return currentInput;
+    },
+    appendTurn() {
+      appended = true;
+    },
+  };
+
+  scheduleJobs(makeFakeBot('42'), '/fake/jobs', {
+    cron: fakeCron,
+    readdir: () => Object.keys(files),
+    readFile: (p) => files[require('node:path').basename(p)],
+    runClaudeCommand: async () => ({ output: '[SKIP]' }),
+    defaultChatId: '42',
+    conversationStore: fakeStore,
+  });
+
+  await fakeCron.scheduled[0].callback();
+
+  assert.equal(appended, false);
 });

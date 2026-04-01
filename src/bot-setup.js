@@ -15,22 +15,24 @@ function buildContextPrompt(text) {
     };
 }
 
-async function handleMessage(ctx, text, { runClaudeCommand, conversationStore, sessionIdMap }) {
+async function handleMessage(ctx, text, { runClaudeCommand, conversationStore }) {
     const chatId = String(ctx.chat?.id ?? 'global');
     const username = ctx.from?.username ?? ctx.from?.id ?? 'unknown';
 
     console.log(`[message] from user=${username} chatId=${chatId}`);
 
     const { prompt } = buildContextPrompt(text);
-    const existingSessionId = sessionIdMap.get(chatId) ?? null;
-
-    console.log('existingSessionId', existingSessionId);
+    const promptWithContext = conversationStore.buildPrompt({ chatId, currentInput: prompt });
 
     try {
-        const { output, sessionId } = await runClaudeCommand({ prompt, sessionId: existingSessionId });
-        console.log(`[claude] succeeded sessionId=${sessionId} outputLength=${output.length}`);
-        sessionIdMap.set(chatId, sessionId);
-        conversationStore.appendExchange({ assistantMessage: output, sessionId, userMessage: prompt });
+        const { output } = await runClaudeCommand({ prompt: promptWithContext });
+        console.log(`[claude] succeeded outputLength=${output.length}`);
+        conversationStore.appendTurn({
+            assistantMessage: output,
+            chatId,
+            source: 'telegram',
+            userMessage: prompt,
+        });
         await ctx.reply(markdownToTelegramHtml(output), { parse_mode: 'HTML' });
     } catch (error) {
         console.error(`[claude] failed error=${error.message}`);
@@ -38,9 +40,9 @@ async function handleMessage(ctx, text, { runClaudeCommand, conversationStore, s
     }
 }
 
-function setupBot(telegramBot, { runClaudeCommand, conversationStore, sessionIdMap, transcribeVoice }) {
+function setupBot(telegramBot, { runClaudeCommand, conversationStore, transcribeVoice }) {
     telegramBot.on(message('text'), (ctx) => {
-        return handleMessage(ctx, ctx.message.text, { runClaudeCommand, conversationStore, sessionIdMap });
+        return handleMessage(ctx, ctx.message.text, { runClaudeCommand, conversationStore });
     });
 
     telegramBot.on(message('voice'), async (ctx) => {
@@ -60,7 +62,7 @@ function setupBot(telegramBot, { runClaudeCommand, conversationStore, sessionIdM
             return;
         }
 
-        await handleMessage(ctx, transcript, { runClaudeCommand, conversationStore, sessionIdMap });
+        await handleMessage(ctx, transcript, { runClaudeCommand, conversationStore });
     });
 
     telegramBot.start((ctx) => ctx.reply('Welcome'));

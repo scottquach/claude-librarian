@@ -1,99 +1,4 @@
 const { query } = require('@anthropic-ai/claude-agent-sdk');
-const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');
-const { dirname, join } = require('node:path');
-
-const CLAUDE_CONVERSATION_DIRECTORY_PATH = join(__dirname, 'conversations');
-
-function escapeXml(value = '') {
-    return String(value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;');
-}
-
-function unescapeXml(value = '') {
-    return String(value)
-        .replace(/&apos;/g, "'")
-        .replace(/&quot;/g, '"')
-        .replace(/&gt;/g, '>')
-        .replace(/&lt;/g, '<')
-        .replace(/&amp;/g, '&');
-}
-
-function getConversationFilePath({ conversationDirectoryPath, sessionId }) {
-    return join(conversationDirectoryPath, `${sessionId}.xml`);
-}
-
-function readConversationEntries({ conversationFilePath, readFile = readFileSync }) {
-    try {
-        const xml = readFile(conversationFilePath, 'utf8');
-        const entryMatches = [...xml.matchAll(/<(user|assistant)>([\s\S]*?)<\/\1>/g)];
-
-        return entryMatches.map(([, role, content]) => ({
-            content: unescapeXml(content),
-            role,
-        }));
-    } catch (error) {
-        if (error.code === 'ENOENT') {
-            return [];
-        }
-
-        throw error;
-    }
-}
-
-function writeConversationEntries({
-    conversationDirectoryPath,
-    createDirectory = mkdirSync,
-    entries,
-    sessionId,
-    writeFile = writeFileSync,
-}) {
-    const conversationFilePath = getConversationFilePath({
-        conversationDirectoryPath,
-        sessionId,
-    });
-    const xml = [
-        `<conversation session-id="${escapeXml(sessionId)}">`,
-        ...entries.map(({ content, role }) => `  <${role}>${escapeXml(content)}</${role}>`),
-        '</conversation>',
-    ].join('\n');
-
-    createDirectory(dirname(conversationFilePath), { recursive: true });
-    writeFile(conversationFilePath, xml, 'utf8');
-}
-
-function createClaudeConversationStore({
-    conversationDirectoryPath = CLAUDE_CONVERSATION_DIRECTORY_PATH,
-    createDirectory = mkdirSync,
-    readFile = readFileSync,
-    writeFile = writeFileSync,
-} = {}) {
-    return {
-        appendExchange({ assistantMessage, sessionId, userMessage }) {
-            const conversationFilePath = getConversationFilePath({
-                conversationDirectoryPath,
-                sessionId,
-            });
-            const entries = readConversationEntries({
-                conversationFilePath,
-                readFile,
-            });
-
-            entries.push({ content: userMessage, role: 'user' }, { content: assistantMessage, role: 'assistant' });
-
-            writeConversationEntries({
-                conversationDirectoryPath,
-                createDirectory,
-                entries,
-                sessionId,
-                writeFile,
-            });
-        },
-    };
-}
 
 const c = {
     reset: '\x1b[0m',
@@ -135,8 +40,7 @@ function logStreamEvent(event) {
 }
 
 function createClaudeCommandRunner({ model = 'haiku', tools = [], directories = [], systemPrompt = '' } = {}) {
-    return async function runClaudeCommand({ prompt = '', sessionId = null } = {}) {
-        let newSessionId = sessionId;
+    return async function runClaudeCommand({ prompt = '' } = {}) {
         let result = null;
 
         console.log("directories", directories);
@@ -153,14 +57,10 @@ function createClaudeCommandRunner({ model = 'haiku', tools = [], directories = 
             permissionMode: 'acceptEdits',
             allowDangerouslySkipPermissions: false,
             includePartialMessages: true,
-            ...(sessionId ? { resume: sessionId } : {}),
         };
 
         for await (const message of query({ prompt, options })) {
             logStreamEvent(message);
-            if (message.type === 'system' && message.subtype === 'init') {
-                newSessionId = message.session_id;
-            }
             if (message.type === 'result') {
                 if (message.subtype === 'success') {
                     result = message.result ?? '';
@@ -170,11 +70,10 @@ function createClaudeCommandRunner({ model = 'haiku', tools = [], directories = 
             }
         }
 
-        return { output: result ?? '', sessionId: newSessionId ?? '' };
+        return { output: result ?? '' };
     };
 }
 
 module.exports = {
     createClaudeCommandRunner,
-    createClaudeConversationStore,
 };

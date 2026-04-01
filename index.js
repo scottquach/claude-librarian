@@ -1,7 +1,8 @@
 require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const { join } = require('node:path');
-const { createClaudeCommandRunner, createClaudeConversationStore } = require('./bot');
+const { createClaudeCommandRunner } = require('./bot');
+const { createConversationStateStore } = require('./src/conversation-state');
 const { loadBotConfig } = require('./src/bot-config-loader');
 const { setupBot } = require('./src/bot-setup');
 const { scheduleJobs } = require('./src/job-scheduler');
@@ -16,19 +17,16 @@ const runClaudeCommand = createClaudeCommandRunner({
     directories: config.directories,
     systemPrompt: config.systemPrompt,
 });
-const conversationStore = createClaudeConversationStore();
-const sessionIdMap = new Map();
+const conversationStore = createConversationStateStore();
 
 setupBot(bot, {
     runClaudeCommand,
     conversationStore,
-    sessionIdMap,
     transcribeVoice: createTranscriber(),
 });
 
 scheduleJobs(bot, join(__dirname, 'jobs'), {
     runClaudeCommand,
-    sessionIdMap,
     conversationStore,
 });
 
