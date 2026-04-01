@@ -10,7 +10,7 @@ It also supports basic retrieval activities and appending to other notes in your
 
 ## What it does
 
-- **Voice logging** — send a voice message and it gets transcribed and logged automatically
+- **Voice logging** — send a voice message and it gets transcribed via whisper and logged automatically
 - **Smart categorization** — Claude classifies entries as moods (`#mood`), events (`#event`), tasks (`- [ ]`), or general notes (`#note`) based on content
 - **Markdown native** — writes directly into weekly journal files (`YYYY-Wxx.md`) under the correct day heading
 - **Date-aware** — every prompt is injected with today's date, current time, week number, and pre-computed file paths so Claude always logs to the right place
@@ -26,7 +26,7 @@ It also supports basic retrieval activities and appending to other notes in your
 | `DEFAULT_CHAT_ID` | No | Telegram chat ID to send proactive/scheduled messages to. Required if you use jobs with `telegram: true` |
 | `CLAUDE_PATH` | No | Path to the Claude Code CLI executable. Defaults to `claude` (assumes it's on your PATH) |
 
-`BOT_TIMEZONE` is important for journaling accuracy. Without it, "today" and the current time would default to UTC, causing entries to land in the wrong day heading.
+`BOT_TIMEZONE` is important for journaling accuracy. Without it, "today" and the current time could default to UTC, causing entries to land in the wrong day heading.
 
 `VAULT_PATH` is used both to grant Claude file access and as the base path in the system prompt. Journal files are expected at `$VAULT_PATH/Journal/`.
 
