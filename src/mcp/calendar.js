@@ -40,9 +40,12 @@ async function fetchIcal(url, timeoutMs = 10000) {
  * Normalize a single event (or recurring instance) into a flat object.
  */
 function normalizeEvent(instance, calendarLabel) {
-    const start = instance.start instanceof Date ? instance.start : new Date(instance.start);
-    const end = instance.end instanceof Date ? instance.end : (instance.start instanceof Date ? instance.start : new Date(instance.start));
+    const timeZone = getCalendarTimezone();
+    const startRaw = instance.start instanceof Date ? instance.start : new Date(instance.start);
+    const endRaw = instance.end instanceof Date ? instance.end : (instance.start instanceof Date ? instance.start : new Date(instance.start));
     const isAllDay = instance.isFullDay ?? (instance.event?.datetype === 'date') ?? false;
+    const start = TZDate.tz(timeZone, startRaw.getTime());
+    const end = TZDate.tz(timeZone, endRaw.getTime());
 
     return {
         uid: instance.event?.uid ?? instance.uid ?? '',

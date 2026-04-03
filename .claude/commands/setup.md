@@ -66,6 +66,20 @@ If jobs exist AND `DEFAULT_CHAT_ID` is NOT set:
 
 If no jobs exist: skip this step silently.
 
+### 7. Calendar MCP (iCal feeds)
+
+Read `.env` to check if `ICAL_URLS` is already set.
+
+If ICAL_URLS is NOT set in `.env`:
+- Ask: "Do you want calendar access? The bot can read iCal feeds (Google Calendar, Apple Calendar, etc.) so Claude can answer questions about your schedule. Enter one or more iCal URLs (comma-separated), or press Enter to skip:"
+- If they provide URLs:
+  - add/update `ICAL_URLS=<urls>` in `.env`
+  - Ask: "Enter labels for each calendar (comma-separated, e.g. `Personal,Work`), or press Enter to skip:"
+  - If they provide labels: add/update `ICAL_LABELS=<labels>` in `.env`
+  - Note: labels are matched by position to URLs
+
+If ICAL_URLS is already set: show the configured URLs and labels (if any) and ask if they want to update them. Skip if they say no.
+
 ### 8. Bots directory
 
 Use Glob to find all `bots/*/BOT.md` files.
@@ -103,6 +117,7 @@ Print a setup summary:
 - Voice (Whisper): configured / skipped
 - Vault/directory paths: updated / unchanged
 - Scheduled jobs (DEFAULT_CHAT_ID): configured / skipped / not needed
+- Calendar MCP (ICAL_URLS): configured (show count of feeds + labels) / skipped
 - Bots: list names and their commands
 - How to run: `node index.js`
 

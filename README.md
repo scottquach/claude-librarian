@@ -24,6 +24,8 @@ It also supports basic retrieval activities and appending to other notes in your
 | `VAULT_PATH` | Yes | Absolute path to your Obsidian vault — used in `BOT.md` to grant Claude file access and set base paths |
 | `OPENAI_API_KEY` | No | OpenAI API key — used by Whisper to transcribe voice messages. Omitting disables voice memo functionality |
 | `DEFAULT_CHAT_ID` | No | Telegram chat ID to send proactive/scheduled messages to. Required if you use jobs with `telegram: true` |
+| `ICAL_URLS` | No | Comma-separated iCal feed URLs (Google Calendar, Apple Calendar, etc.). Enables a calendar MCP tool so Claude can query your upcoming events |
+| `ICAL_LABELS` | No | Comma-separated labels for each iCal feed (e.g. `Personal,Work`). Matched by position to `ICAL_URLS` |
 | `CLAUDE_PATH` | No | Path to the Claude Code CLI executable. Defaults to `claude` (assumes it's on your PATH) |
 
 `BOT_TIMEZONE` is important for journaling accuracy. Without it, "today" and the current time could default to UTC, causing entries to land in the wrong day heading.

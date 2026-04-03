@@ -7,6 +7,7 @@ tools:
     - Write
     - Edit
     - Bash
+    - mcp__calendar__get_calendar_events
 directories:
     - ${VAULT_PATH}
 timeoutMs: 80000
