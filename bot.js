@@ -39,7 +39,7 @@ function logStreamEvent(event) {
     }
 }
 
-function createClaudeCommandRunner({ model = 'haiku', tools = [], directories = [], systemPrompt = '' } = {}) {
+function createClaudeCommandRunner({ model = 'haiku', tools = [], directories = [], systemPrompt = '', mcpServers } = {}) {
     return async function runClaudeCommand({ prompt = '' } = {}) {
         let result = null;
 
@@ -54,6 +54,7 @@ function createClaudeCommandRunner({ model = 'haiku', tools = [], directories = 
             allowedTools: tools,
             model,
             systemPrompt: systemPrompt || undefined,
+            mcpServers: mcpServers || undefined,
             permissionMode: 'acceptEdits',
             allowDangerouslySkipPermissions: false,
             includePartialMessages: true,

@@ -1,7 +1,7 @@
 ---
 name: weekly-prepare
 cron: '0 9 * * 5'
-telegram: true
+telegram: false
 model: haiku
 ---
 

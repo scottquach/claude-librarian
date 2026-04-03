@@ -9,7 +9,8 @@ Review the current weekly note.
 
 1. Find today's `## YYYY-MM-DD` section and collect all unchecked tasks from today.
 2. Review the `This week` section and identify any unchecked tasks that are not already scheduled under a day header later this week.
-3. Propose only `This week` tasks that would make sense to schedule for tomorrow. Keep the list selective and practical.
+3. If the `get_calendar_events` tool is available, check tomorrow's calendar events using `start_date` and `end_date` set to tomorrow, then use that schedule to judge how much space tomorrow realistically has.
+4. Propose only `This week` tasks that would make sense to schedule for tomorrow. Keep the list selective and practical, and avoid overloading a day that already looks busy from the calendar.
 
 Output rules:
 
@@ -17,6 +18,7 @@ Output rules:
 - Otherwise, send a short prompt to the user:
   - List today's unchecked tasks under `Carry over from today`
   - List proposed `This week` tasks under `Could also add for tomorrow`
+  - If calendar context materially affected your judgment, include one short line noting that tomorrow looks busy or open
   - Ask which tasks should be moved to tomorrow
 
 When the user responds:
