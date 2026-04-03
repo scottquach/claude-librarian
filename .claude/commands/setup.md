@@ -75,40 +75,10 @@ If ICAL_URLS is NOT set in `.env`:
 - If they provide URLs:
   - add/update `ICAL_URLS=<urls>` in `.env`
   - Ask: "Enter labels for each calendar (comma-separated, e.g. `Personal,Work`), or press Enter to skip:"
-  - If they provide labels: add/update `ICAL_LABELS=<labels>` in `.env`
-  - Note: labels are matched by position to URLs
 
 If ICAL_URLS is already set: show the configured URLs and labels (if any) and ask if they want to update them. Skip if they say no.
 
-### 8. Bots directory
-
-Use Glob to find all `bots/*/BOT.md` files.
-
-If no bots are found:
-- Ask: "No bots found in the bots/ directory. Would you like to create a starter bot? (yes/no)"
-- If yes: create `bots/my-bot/BOT.md` with this template and tell the user to customize it:
-
-```
----
-name: my-bot
-description: My custom Claude bot
-model: haiku
-tools:
-  - Read
-  - Write
-commands:
-  - name: chat
-    description: Chat with your bot
-timeoutMs: 60000
-sessionIsolation: perCommand
----
-
-You are a helpful assistant.
-```
-
-If bots exist: list their names and commands — e.g. "Found: journal (/journal)"
-
-### 9. Summary
+### 8. Summary
 
 Print a setup summary:
 - Prerequisites: ✓ / ✗
