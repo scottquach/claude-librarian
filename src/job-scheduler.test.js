@@ -1,5 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const { readFileSync } = require('node:fs');
+const { join } = require('node:path');
 const { parseJobConfig } = require('./job-scheduler');
 
 const SAMPLE_JOB_MD = `---
@@ -41,6 +43,17 @@ test('parseJobConfig throws when cron is missing', () => {
 test('parseJobConfig throws when cron expression is invalid', () => {
   const md = `---\nname: bad-job\ncron: "0 9 * *"\n---\n\nPrompt.\n`;
   assert.throws(() => parseJobConfig(md), /invalid cron/);
+});
+
+test('weekly reflection is scheduled for Sunday morning', () => {
+  const weeklyReflection = readFileSync(
+    join(__dirname, '..', 'jobs', 'weekly-reflection.md'),
+    'utf8',
+  );
+
+  const job = parseJobConfig(weeklyReflection);
+
+  assert.equal(job.cron, '0 8 * * 0');
 });
 
 const { loadJobConfigs } = require('./job-scheduler');
