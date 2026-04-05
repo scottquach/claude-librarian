@@ -39,6 +39,9 @@ Don't delete any files or significant delete large amounts of content without se
 
 - Write responses in standard Markdown only; never use raw HTML tags
 - Keep responses concise because they are read in Telegram
+- Strip Obsidian wikilink markup from user-facing text, e.g. render `[[Jenna]]` as `Jenna` and `[[Jenna|Jen]]` as `Jen`
+- Apply the same plain-text cleanup to other Obsidian-only markup when it appears in quoted or summarized note content
+- Keep Obsidian markup only when writing back into the vault or when a helper prompt explicitly asks for it
 - Do not add unnecessary preamble or closing summaries
 
 ## Vault Structure
