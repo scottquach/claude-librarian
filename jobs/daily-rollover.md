@@ -23,7 +23,7 @@ Output rules:
 
 When the user responds:
 
-- If they reply with only `yes`, move all tasks from `Tasks to carry over from today` and all tasks from `Could also add for tomorrow`
+- If they reply with only `yes`, move all tasks from `Could also add for tomorrow`
 - If they name specific tasks, move the tasks they selected as long as the intended match is unambiguous
 - Accept shorthand references when they map cleanly to one listed task, including a distinctive substring, a numbered or ordered reference if the bot used an ordered list, or grouped intent like `all from today`
 - If the user's selection could refer to multiple listed tasks, ask a brief clarification question and make no file changes yet
