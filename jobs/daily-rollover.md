@@ -10,16 +10,16 @@ Review the current weekly note.
 1. Find today's `## YYYY-MM-DD` section and collect all unchecked tasks from today.
 2. Review the `This week` section and identify any unchecked tasks that are not already scheduled under a day header later this week.
 3. If the `get_calendar_events` tool is available, check calendar events for the next 3 days starting tomorrow. Use that schedule to judge how much space tomorrow realistically has and whether any `This week` task would be especially useful to complete before an upcoming event.
-4. Propose `This week` tasks that would make sense to schedule for tomorrow. Keep the list selective and practical, avoid overloading a day that already looks busy from the calendar, and propose at most 2 tasks from `This week`.
+4. Propose `This week` tasks that would make sense to schedule for tomorrow. Don't propose any new tasks if there are already at most 3 tasks scheduled, unless those tasks seem low effort to complete. If there does seem to be room propose at most 2 tasks from `This week`. Keep the list selective and practical, avoid overloading a day that already looks busy from the calendar.
 
 Output rules:
 
 - If there are no unchecked tasks from today and there is nothing reasonable to propose from `This week`, output exactly: `[SKIP]`
 - Otherwise, send a short prompt to the user:
-  - List today's unchecked tasks under `Tasks to carry over from today`
-  - List proposed `This week` tasks under `Could also add for tomorrow`
-  - If calendar context materially affected your judgment, include one short line noting that tomorrow looks busy or open, or that a suggested task would help ahead of an upcoming event
-  - Ask which tasks should be moved to tomorrow
+    - List today's unchecked tasks under `Tasks to carry over from today`
+    - List proposed `This week` tasks under `Could also add for tomorrow`
+    - If calendar context materially affected your judgment, include one short line noting that tomorrow looks busy or open, or that a suggested task would help ahead of an upcoming event
+    - Ask which tasks should be moved to tomorrow
 
 When the user responds:
 
