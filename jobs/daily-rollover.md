@@ -7,9 +7,18 @@ telegram: true
 Review the current weekly note.
 
 1. Find today's `## YYYY-MM-DD` section and collect all unchecked tasks from today.
-2. Review the `This week` section and identify any unchecked tasks that are not already scheduled under a day header later this week.
-3. If the `get_calendar_events` tool is available, check calendar events for the next 3 days starting tomorrow. Use that schedule to judge how much space tomorrow realistically has and whether any `This week` task would be especially useful to complete before an upcoming event.
-4. Propose `This week` tasks that would make sense to schedule for tomorrow. Don't propose any new tasks if there are already at expected to be at most 3 tasks after the days rollover, unless those tasks seem low effort to complete. If there does seem to be room propose at most 2 tasks from `This week`. Keep the list selective and practical, avoid overloading a day that already looks busy from the calendar.
+2. Find tomorrow's `## YYYY-MM-DD` section and collect any unchecked tasks already scheduled there.
+3. Review the `This week` section and identify unchecked tasks that are not already scheduled under a day header later this week.
+4. If the `get_calendar_events` tool is available, check calendar events for the next 3 days starting tomorrow. Use that schedule to judge how much space tomorrow realistically has and whether any `This week` task would be especially useful to complete before an upcoming event.
+5. Before proposing anything from `This week`, estimate tomorrow's task load after rollover:
+   - start with unchecked tasks already under tomorrow
+   - add all unchecked tasks carried over from today
+   - treat that combined set as tomorrow's likely baseline workload
+6. Only propose tasks from `This week` if tomorrow still appears to have real capacity after that rollover baseline. Be conservative:
+   - if the rollover baseline is already 3 or more tasks, do not propose anything extra unless the day looks unusually open and the extra task is genuinely small
+   - if tomorrow already looks busy from the calendar, prefer proposing nothing
+   - if there is room, propose at most 2 tasks and prefer tasks that are time-sensitive, unblock something else, or would be useful before an upcoming event
+   - do not propose filler tasks just to use open space
 
 Output rules:
 
@@ -17,6 +26,7 @@ Output rules:
 - Otherwise, send a short prompt to the user:
     - List today's unchecked tasks under `Tasks to carry over from today`
     - List proposed `This week` tasks under `Could also add for tomorrow`
+    - Only include the `Could also add for tomorrow` section if you actually have one or more good proposals
     - If calendar context materially affected your judgment, include one short line noting that tomorrow looks busy or open, or that a suggested task would help ahead of an upcoming event
     - Ask which tasks should be moved to tomorrow
 
