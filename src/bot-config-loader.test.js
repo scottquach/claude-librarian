@@ -11,7 +11,6 @@ tools:
   - Edit
 directories:
   - /some/path
-timeoutMs: 60000
 ---
 
 You are a journal assistant.
@@ -25,7 +24,6 @@ test('parseFrontmatter extracts frontmatter object and body', () => {
   assert.equal(frontmatter.model, 'haiku');
   assert.deepEqual(frontmatter.tools, ['Read', 'Edit']);
   assert.deepEqual(frontmatter.directories, ['/some/path']);
-  assert.equal(frontmatter.timeoutMs, 60000);
   assert.match(body, /You are a journal assistant/);
 });
 
@@ -107,18 +105,6 @@ test('loadBotConfig works without CLAUDE.md or prompts dir', () => {
 
   const config = loadBotConfig('/project/BOT.md', '/project/prompts', { readFile, readdirSync });
   assert.match(config.systemPrompt, /Bot instructions here/);
-});
-
-test('loadBotConfig applies default timeoutMs', () => {
-  const files = { '/project/BOT.md': SIMPLE_BOT_MD };
-  const readFile = (p) => {
-    if (files[p]) return files[p];
-    throw Object.assign(new Error(), { code: 'ENOENT' });
-  };
-  const readdirSync = () => { throw Object.assign(new Error(), { code: 'ENOENT' }); };
-
-  const config = loadBotConfig('/project/BOT.md', '/project/prompts', { readFile, readdirSync });
-  assert.equal(config.timeoutMs, 80000);
 });
 
 test('loadBotConfig expands env vars in directories and systemPrompt', () => {

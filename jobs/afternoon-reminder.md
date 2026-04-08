@@ -2,7 +2,6 @@
 name: afternoon-reminder
 cron: '30 17 * * *'
 telegram: true
-model: haiku
 ---
 
 Check today's daily header and any other daily header from this weeks weekly note file for incomplete tasks (unchecked checkboxes).

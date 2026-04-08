@@ -2,7 +2,6 @@
 name: daily-rollover
 cron: '0 21 * * *'
 telegram: true
-model: haiku
 ---
 
 Review the current weekly note.

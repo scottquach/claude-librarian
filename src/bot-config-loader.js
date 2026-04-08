@@ -59,7 +59,6 @@ function loadBotConfig(botMdPath, promptsDir, opts = {}) {
     directories: Array.isArray(frontmatter.directories)
       ? frontmatter.directories.map((d) => expandEnvVars(String(d), env))
       : [],
-    timeoutMs: typeof frontmatter.timeoutMs === 'number' ? frontmatter.timeoutMs : 80000,
     systemPrompt: expandEnvVars(prompt, env),
   };
 }

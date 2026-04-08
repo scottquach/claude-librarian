@@ -2,7 +2,6 @@
 name: morning-brief
 cron: '30 7 * * *'
 telegram: true
-model: haiku
 ---
 
 Check today's day header in the current weekly note for unchecked tasks.

@@ -2,7 +2,6 @@
 name: weekly-rollover
 cron: '0 6 * * 0'
 telegram: false
-model: haiku
 ---
 
 1. Cut and paste any grocery list items from the previous week to the new week.

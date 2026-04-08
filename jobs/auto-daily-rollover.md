@@ -2,7 +2,6 @@
 name: auto-daily-rollover
 cron: '0 1 * * *'
 telegram: false
-model: haiku
 ---
 
 Review the weekly note(s) and move all unchecked tasks from yesterday into today.

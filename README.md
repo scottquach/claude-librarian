@@ -62,7 +62,6 @@ Jobs are defined as `.md` files in the `jobs/` directory with a YAML frontmatter
 | `name` | Yes | Identifier used in logs |
 | `cron` | Yes | Cron expression for the schedule |
 | `telegram` | No | Set to `true` to send output to your Telegram chat |
-| `model` | No | Claude model to use (defaults to `haiku`) |
 
 The body of the file is the prompt Claude receives when the job runs.
 

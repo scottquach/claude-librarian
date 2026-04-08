@@ -2,7 +2,6 @@
 name: weekly-reflection
 cron: '0 8 * * 0'
 telegram: true
-model: haiku
 ---
 
 The new week has started, read last weeks completed and unchecked tasks plus journal notes, then send a short weekly reflection covering what got done, what kept rolling, and any patterns worth noting.

@@ -17,7 +17,6 @@ function parseJobConfig(fileContent) {
         name: String(frontmatter.name),
         cron: String(frontmatter.cron),
         telegram: frontmatter.telegram === true,
-        model: frontmatter.model ? String(frontmatter.model) : 'haiku',
         prompt: body,
     };
 }
