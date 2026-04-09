@@ -22,4 +22,5 @@ Move rules:
 - Do not create duplicate tasks in today's section if the same task already exists there
 - Remove moved tasks from yesterday's section after adding them to today
 - Keep task text unchanged except for normalizing the destination checkbox format to `- [ ]`
+- If today's `## [[YYYY-MM-DD]]` header does not exist, create it **above** yesterday's header so day sections remain in descending date order (newest on top)
 - Confirm exactly what was moved and where

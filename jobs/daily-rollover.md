@@ -23,16 +23,16 @@ Review the current weekly note.
 Output rules:
 
 - If there are no unchecked tasks from today and there is nothing reasonable to propose from `This week`, output exactly: `[SKIP]`
-- Otherwise, send a short prompt to the user:
+- Otherwise, send a short summary to the user. This is a passive showcase, not a question — the user can act on it or ignore it entirely:
     - List today's unchecked tasks under `Tasks to carry over from today`
     - List proposed `This week` tasks under `Could also add for tomorrow`
     - Only include the `Could also add for tomorrow` section if you actually have one or more good proposals
     - If calendar context materially affected your judgment, include one short line noting that tomorrow looks busy or open, or that a suggested task would help ahead of an upcoming event
-    - Ask which tasks should be moved to tomorrow
+    - Do not ask a question or prompt for a decision. Just present the suggestions and stop.
 
-When the user responds:
+If the user responds (they may also just ignore the message, which is fine — in that case do nothing):
 
-- If they reply with only `yes`, move all tasks from `Could also add for tomorrow`
+- If they reply with only `yes`, move all tasks listed (both today's carryover and any `Could also add for tomorrow`)
 - If they name specific tasks, move the tasks they selected as long as the intended match is unambiguous
 - Accept shorthand references when they map cleanly to one listed task, including a distinctive substring, a numbered or ordered reference if the bot used an ordered list, or grouped intent like `all from today`
 - If the user's selection could refer to multiple listed tasks, ask a brief clarification question and make no file changes yet
