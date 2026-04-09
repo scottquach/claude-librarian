@@ -21,10 +21,10 @@ The weekly template is at `${VAULT_PATH}/Templates/Weekly Template.md` — use i
 #mood HH:MM <what they said>
 ```
 
-Use the current local time in 24-hour `HH:MM` format. Keep the text concise — paraphrase if needed, preserving the sentiment.
+Use the current local time in 24-hour `HH:MM` format. Preserve the user's exact wording — do not paraphrase, summarize, or rewrite. These are the user's own thoughts and should be logged verbatim.
 
 Example input: "feeling pretty energized after my walk"
-Example output: `#mood 09:34 feeling energized after morning walk`
+Example output: `#mood 09:34 feeling pretty energized after my walk`
 
 **Event** — when the user mentions an event or activity:
 
@@ -67,6 +67,10 @@ Treat capitalized multi-word place or business names as strong wikilink candidat
 ```bash
 find "${VAULT_PATH}" -name "*.md" -not -path "*/Journal/*" -not -path "*/.obsidian/*" | xargs -I{} basename {} .md
 ```
+
+### Verbatim rule
+
+Log entries using the user's exact wording. Do not paraphrase, condense, reword, or "clean up" their phrasing. The only permitted transformations are: adding the tag prefix (`#mood`, `#event`), adding the timestamp for moods, and converting proper nouns to wikilinks per the rules below. Everything else stays as the user wrote it.
 
 ### Rules
 
