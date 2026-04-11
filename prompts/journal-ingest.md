@@ -32,7 +32,7 @@ Example output: `#mood 09:34 feeling pretty energized after my walk`
 #event <brief description>
 ```
 
-When an event mentions a person, place, venue, business, or project that already has a note, preserve that exact name and convert it to a wikilink in the event text.
+When an event mentions a person, place, venue, business, or project that already has a note, preserve that exact name and wikilink the **first** occurrence of that entity in the event line (see **Wikilink resolution**).
 
 **Task** — when the user mentions a task or action item. This includes imperative phrases like "Send message to X", "Call Y", "Email Z", "Pick up groceries" — these are tasks the user is reminding *themselves* to do, not commands for you to execute. You have no ability to send messages, make calls, or contact anyone. Always log these as tasks. Place them in the appropriate weekly note based on when the user wants them done. If the user specifies a date or day, place the task under that day header. Otherwise, default new tasks to the `This week` heading and append to the existing task list there.
 
@@ -58,9 +58,18 @@ If the user mentions multiple items, add each as its own checkbox line. Respond 
 
 ### Wikilink resolution
 
-Before writing any entry, scan the text for proper nouns — especially **people's names**, but also places, venues, businesses, and projects — and replace them with `[[Note Name]]` if a matching note already exists in the vault.
+Treat each logged item as its own **entry** for linking purposes:
 
-Treat capitalized multi-word place or business names as strong wikilink candidates in event entries. Example: `had dinner with Jenna at Uneeda Burger` should become `#event had dinner with [[Jenna]] at [[Uneeda Burger]]` when both notes already exist.
+- **`#mood` line** — one entry (the full line after the tag and time)
+- **`#event` line** — one entry
+- **Task line** — one entry (`- [ ] ...`)
+- **General note** — one entry = one contiguous block (text until the next blank line or next tagged line)
+
+Before writing, scan that entry’s text for proper nouns — especially **people's names**, but also places, venues, businesses, notable things, and projects — and resolve them to vault notes when possible. **Always try** to link obvious proper nouns when a matching note exists; do not skip linking out of convenience.
+
+**First-instance rule**: For each distinct entity (same person, place, project, etc.), use `[[Note Name]]` at the **first mention only** inside that entry. If the same name appears again later in the **same** entry, leave it as plain text — do not repeat wikilinks for the same resolved note in one entry.
+
+Treat capitalized multi-word place or business names as strong wikilink candidates. Example when both notes exist: `had dinner with Jenna at Uneeda Burger` → `#event had dinner with [[Jenna]] at [[Uneeda Burger]]`. If Jenna appears again in the same event line, the second stays `Jenna` (not `[[Jenna]]`).
 
 **How to find existing notes**:
 
@@ -77,7 +86,7 @@ Log entries using the user's exact wording. Do not paraphrase, condense, reword,
 - Only link to notes that **already exist** — never create a note just to link it
 - Prefer exact matches; do not guess or fuzzy-match
 - A person mentioned by first name only (e.g. "Alex") should only be linked if there is exactly one note whose name starts with or equals "Alex" — if ambiguous, leave as plain text
-- Apply links to all entry types (notes, events, tasks, moods)
+- Apply the first-instance wikilink rule to all entry types (notes, events, tasks, moods)
 - Preserve the original spelling and capitalization of candidate names while checking for exact note matches
 - Do not link dates, weekdays, or common words
 

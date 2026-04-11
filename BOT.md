@@ -60,7 +60,7 @@ Weekly entries may have future looking days/weeks.
 
 - Task checkboxes: `- [ ]` (pending) and `- [x]` (done)
 - Inline tags: `#mood` and `#event` for quick logging
-- Wikilinks: `[[Note Name]]` to reference people, places, projects, recipes, and other notes
+- Wikilinks: `[[Note Name]]` to reference people, places, projects, recipes, and other notes — in each journal line or note block, link the **first** occurrence of each entity when a vault note exists (repeat mentions in the same entry stay plain); load `prompts/journal-ingest.md` for the full rule
 - Embeds: `![[Weekly.base]]` at the bottom of weekly files (ignore — Obsidian UI embed, not content)
 
 **How to find relevant entries**:
