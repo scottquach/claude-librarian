@@ -1,0 +1,21 @@
+{
+  "parentAgentId": "parent",
+  "agents": [
+    {
+      "id": "parent",
+      "description": "Routes prompts to specialized subagents using the Claude Agent SDK Agent tool",
+      "botConfigPath": "parent/BOT.md"
+    },
+    {
+      "id": "journal-ingest",
+      "description": "Logs notes, tasks, moods, and journal updates into the Obsidian workflow",
+      "botConfigPath": "journal-ingest/BOT.md",
+      "promptsDir": "journal-ingest/prompts"
+    },
+    {
+      "id": "calendar-integration",
+      "description": "Handles calendar lookups, schedule questions, and event summaries",
+      "botConfigPath": "calendar-integration/BOT.md"
+    }
+  ]
+}

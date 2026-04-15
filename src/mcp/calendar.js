@@ -42,8 +42,13 @@ async function fetchIcal(url, timeoutMs = 10000) {
 function normalizeEvent(instance, calendarLabel) {
     const timeZone = getCalendarTimezone();
     const startRaw = instance.start instanceof Date ? instance.start : new Date(instance.start);
-    const endRaw = instance.end instanceof Date ? instance.end : (instance.start instanceof Date ? instance.start : new Date(instance.start));
-    const isAllDay = instance.isFullDay ?? (instance.event?.datetype === 'date') ?? false;
+    const endRaw =
+        instance.end instanceof Date
+            ? instance.end
+            : instance.start instanceof Date
+              ? instance.start
+              : new Date(instance.start);
+    const isAllDay = instance.isFullDay ?? instance.event?.datetype === 'date' ?? false;
     const start = TZDate.tz(timeZone, startRaw.getTime());
     const end = TZDate.tz(timeZone, endRaw.getTime());
 
@@ -101,13 +106,9 @@ async function fetchCalendarEvents(urls, labels, options = {}) {
     const from = startDate
         ? startOfDay(createZonedDay(startDate, timeZone))
         : getDefaultStartDate(new Date(), timeZone);
-    const to = endDate
-        ? endOfDay(createZonedDay(endDate, timeZone))
-        : addDays(from, daysAhead);
+    const to = endDate ? endOfDay(createZonedDay(endDate, timeZone)) : addDays(from, daysAhead);
 
-    const results = await Promise.allSettled(
-        urls.map((url) => fetchIcal(url)),
-    );
+    const results = await Promise.allSettled(urls.map((url) => fetchIcal(url)));
 
     const allEvents = [];
     const warnings = [];
@@ -140,9 +141,7 @@ async function fetchCalendarEvents(urls, labels, options = {}) {
     let filtered = deduped;
     if (search) {
         const q = search.toLowerCase();
-        filtered = deduped.filter(
-            (e) => e.title.toLowerCase().includes(q) || e.description.toLowerCase().includes(q),
-        );
+        filtered = deduped.filter((e) => e.title.toLowerCase().includes(q) || e.description.toLowerCase().includes(q));
     }
 
     return { events: filtered, warnings };
@@ -165,9 +164,18 @@ function createCalendarServer(urls, labels) {
                 'Fetch upcoming calendar events from all configured calendars. Returns a merged, sorted list of events.',
                 {
                     days_ahead: z.number().optional().describe('Number of days into the future to fetch (default: 14)'),
-                    start_date: z.string().optional().describe('ISO date (YYYY-MM-DD) for range start. Defaults to today.'),
-                    end_date: z.string().optional().describe('ISO date (YYYY-MM-DD) for range end. Overrides days_ahead if provided.'),
-                    search: z.string().optional().describe('Case-insensitive text filter on event title and description'),
+                    start_date: z
+                        .string()
+                        .optional()
+                        .describe('ISO date (YYYY-MM-DD) for range start. Defaults to today.'),
+                    end_date: z
+                        .string()
+                        .optional()
+                        .describe('ISO date (YYYY-MM-DD) for range end. Overrides days_ahead if provided.'),
+                    search: z
+                        .string()
+                        .optional()
+                        .describe('Case-insensitive text filter on event title and description'),
                 },
                 async (args) => {
                     const { events, warnings } = await fetchCalendarEvents(urls, labels, {
@@ -185,7 +193,7 @@ function createCalendarServer(urls, labels) {
                         text = 'No events found in the requested date range.';
                     }
 
-                    console.log("text", text);
+                    console.log('text', text);
 
                     return { content: [{ type: 'text', text }] };
                 },

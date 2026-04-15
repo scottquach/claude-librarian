@@ -37,11 +37,11 @@ function loadJobConfigs(jobsDir, opts = {}) {
 function scheduleJobs(bot, jobsDir, opts = {}) {
     const cron = opts.cron ?? nodeCron;
     const defaultChatId = opts.defaultChatId ?? process.env.DEFAULT_CHAT_ID;
-    const runClaudeCommand = opts.runClaudeCommand;
+    const runParentAgent = opts.runParentAgent;
     const conversationStore = opts.conversationStore ?? null;
 
-    if (!runClaudeCommand) {
-        throw new Error('scheduleJobs requires a runClaudeCommand option');
+    if (!runParentAgent) {
+        throw new Error('scheduleJobs requires a runParentAgent option');
     }
 
     const jobs = loadJobConfigs(jobsDir, {
@@ -57,7 +57,12 @@ function scheduleJobs(bot, jobsDir, opts = {}) {
                 console.log(`[job] running: ${job.name}`);
                 try {
                     const promptWithContext = conversationStore?.buildPrompt({ chatId, currentInput: job.prompt }) ?? job.prompt;
-                    const { output } = await runClaudeCommand({ prompt: promptWithContext });
+                    const { output } = await runParentAgent({
+                        chatId,
+                        jobName: job.name,
+                        prompt: promptWithContext,
+                        source: 'job',
+                    });
                     const shouldSkip = output.trimStart().startsWith('[SKIP]');
                     console.log(`[job] completed: ${job.name} ${job.telegram}${shouldSkip ? ' (skipped)' : ''}`);
                     if (conversationStore && !shouldSkip) {

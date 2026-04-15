@@ -52,6 +52,7 @@ test('loadBotConfig loads BOT.md and returns config', () => {
   const readdirSync = () => { throw Object.assign(new Error(), { code: 'ENOENT' }); };
 
   const config = loadBotConfig('/project/BOT.md', '/project/prompts', { readFile, readdirSync });
+  assert.equal(config.name, 'librarian');
   assert.equal(config.model, 'haiku');
   assert.deepEqual(config.tools, ['Read']);
   assert.match(config.systemPrompt, /Bot instructions here/);

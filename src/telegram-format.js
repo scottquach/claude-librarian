@@ -32,8 +32,8 @@ function markdownToTelegramHtml(text) {
   result = result.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => `<a href="${url}">${text}</a>`);
 
   // 8. Checkboxes
-  result = result.replace(/- \[ \]/g, '- ');
-  result = result.replace(/- \[x\]/gi, 'x ');
+  result = result.replace(/- \[ \]\s/g, '- ⬜ ');
+  result = result.replace(/- \[[xX]\]\s/g, '- ✅ ');
 
   return result;
 }

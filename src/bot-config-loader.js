@@ -54,6 +54,8 @@ function loadBotConfig(botMdPath, promptsDir, opts = {}) {
   } catch {}
 
   return {
+    name: typeof frontmatter.name === 'string' ? frontmatter.name : '',
+    description: typeof frontmatter.description === 'string' ? frontmatter.description : '',
     model: String(frontmatter.model),
     tools: Array.isArray(frontmatter.tools) ? frontmatter.tools.map(String) : [],
     directories: Array.isArray(frontmatter.directories)

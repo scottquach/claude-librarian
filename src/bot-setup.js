@@ -2,17 +2,21 @@
 const { message } = require('telegraf/filters');
 const { markdownToTelegramHtml } = require('./telegram-format');
 
-async function handleMessage(ctx, text, { runClaudeCommand, conversationStore }) {
+async function handleMessage(ctx, text, { runParentAgent, conversationStore }) {
     const chatId = String(ctx.chat?.id ?? 'global');
     const username = ctx.from?.username ?? ctx.from?.id ?? 'unknown';
 
     console.log(`[message] from user=${username} chatId=${chatId}`);
 
     const promptWithContext = conversationStore.buildPrompt({ chatId, currentInput: text });
-    console.log("promptWithContext", promptWithContext);
+    console.log('promptWithContext', promptWithContext);
 
     try {
-        const { output } = await runClaudeCommand({ prompt: promptWithContext });
+        const { output } = await runParentAgent({
+            chatId,
+            prompt: promptWithContext,
+            source: 'telegram',
+        });
         console.log(`[claude] succeeded outputLength=${output.length}`);
         conversationStore.appendTurn({
             assistantMessage: output,
@@ -27,9 +31,9 @@ async function handleMessage(ctx, text, { runClaudeCommand, conversationStore })
     }
 }
 
-function setupBot(telegramBot, { runClaudeCommand, conversationStore, transcribeVoice }) {
+function setupBot(telegramBot, { runParentAgent, conversationStore, transcribeVoice }) {
     telegramBot.on(message('text'), (ctx) => {
-        return handleMessage(ctx, ctx.message.text, { runClaudeCommand, conversationStore });
+        return handleMessage(ctx, ctx.message.text, { runParentAgent, conversationStore });
     });
 
     telegramBot.on(message('voice'), async (ctx) => {
@@ -49,7 +53,7 @@ function setupBot(telegramBot, { runClaudeCommand, conversationStore, transcribe
             return;
         }
 
-        await handleMessage(ctx, transcript, { runClaudeCommand, conversationStore });
+        await handleMessage(ctx, transcript, { runParentAgent, conversationStore });
     });
 
     telegramBot.start((ctx) => ctx.reply('Welcome'));
