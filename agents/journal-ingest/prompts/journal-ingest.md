@@ -1,5 +1,9 @@
 ## Journal Ingest
 
+### Verbatim rule
+
+Log entries using the user's exact wording. Do not paraphrase, condense, or clean up their phrasing. The only allowed changes are adding the correct tag, adding the mood timestamp, and converting proper nouns to wikilinks.
+
 ### Finding the target file and heading
 
 1. Read `weekly_note`, `day_header`, and the current date from the `[Context: ...]` line in the prompt
@@ -55,9 +59,7 @@ If the heading does not exist yet, create it near the top of the file.
 
 Separate plain-text note blocks from surrounding content with a blank line before and after.
 
-Do not ask for clarification. Bias strongly toward ingest.
-
-### Wikilink resolution
+### Wikilinks
 
 Treat each logged item as its own entry for linking purposes:
 
@@ -66,25 +68,14 @@ Treat each logged item as its own entry for linking purposes:
 - Task line
 - General note block
 
-Before writing, scan that entry's text for proper nouns, especially people's names, places, venues, businesses, notable things, and projects. Always try to link obvious proper nouns when a matching note exists.
+Before writing, scan that entry's text for proper nouns — especially people's names, places, venues, businesses, notable things, and projects. Always try to link obvious proper nouns when a matching note exists.
 
-**First-instance rule**: For each distinct entity, use `[[Note Name]]` at the first mention only inside that entry. If the same name appears again later in the same entry, leave it as plain text.
-
-To discover existing notes, inspect markdown files in `${VAULT_PATH}` outside `Journal/` and `.obsidian/`.
-
-### Verbatim rule
-
-Log entries using the user's exact wording. Do not paraphrase, condense, or clean up their phrasing. The only allowed changes are adding the correct tag, adding the mood timestamp, and converting proper nouns to wikilinks.
-
-### Rules
-
+- **First-instance rule**: for each distinct entity, use `[[Note Name]]` at the first mention only inside that entry. If the same name appears again later in the same entry, leave it as plain text.
 - Only link to notes that already exist
 - Prefer exact matches and do not fuzzy-match
 - A first name should be linked only when it maps to exactly one note
-- Apply the first-instance wikilink rule to all entry types
 - Preserve the original spelling and capitalization of candidate names while checking for exact note matches
 - Do not link dates, weekdays, or common words
+- To discover existing notes, inspect markdown files in `${VAULT_PATH}` outside `Journal/` and `.obsidian/`
 
 After logging, reply with a single short confirmation only, such as `Logged.` or `Added under 2026-03-17.`
-
-Expressions of interest or ideas like "X would be cool" or "I should try X" are notes, not requests to act. Log the thought and confirm with one line.
