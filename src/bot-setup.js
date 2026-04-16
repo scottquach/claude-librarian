@@ -26,7 +26,7 @@ async function handleMessage(ctx, text, { runParentAgent, conversationStore }) {
         });
         await ctx.reply(markdownToTelegramHtml(output), { parse_mode: 'HTML' });
     } catch (error) {
-        console.error(`[claude] failed error=${error.message}`);
+        console.error(`[claude] failed error=${error.message}`, error.stack ?? '');
         await ctx.reply('Something went wrong: ' + error.message);
     }
 }

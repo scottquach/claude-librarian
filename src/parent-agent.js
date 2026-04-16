@@ -115,7 +115,9 @@ function createParentAgentRunner({ registry, mcpServers, queryFn = query } = {})
                     continue;
                 }
 
-                throw new Error(message.errors?.join('; ') ?? `Claude ended with subtype: ${message.subtype}`);
+                const errorMsg = message.errors?.join('; ') ?? `Claude ended with subtype: ${message.subtype}`;
+                console.error('[claude] result event failure:', JSON.stringify(message, null, 2));
+                throw new Error(errorMsg);
             }
         }
 
