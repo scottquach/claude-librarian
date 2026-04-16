@@ -1,4 +1,5 @@
 const { query } = require('@anthropic-ai/claude-agent-sdk');
+const { execFile } = require('node:child_process');
 
 const c = {
     reset: '\x1b[0m',
@@ -96,8 +97,23 @@ function collectDelegatedAgents(event, delegatedAgents) {
     }
 }
 
+function checkClaudeExecutable(claudePath) {
+    return new Promise((resolve) => {
+        execFile(claudePath, ['--version'], { timeout: 5000 }, (err, stdout, stderr) => {
+            if (err) {
+                console.error(`[claude] preflight check failed for "${claudePath}":`, err.message);
+                if (stderr) console.error('[claude] preflight stderr:', stderr);
+            } else {
+                console.log(`[claude] preflight ok: ${stdout.trim()}`);
+            }
+            resolve();
+        });
+    });
+}
+
 function createParentAgentRunner({ registry, mcpServers, queryFn = query } = {}) {
     const options = createParentOptions({ registry, mcpServers });
+    checkClaudeExecutable(options.pathToClaudeCodeExecutable ?? 'claude');
 
     return async function runParentAgent({ prompt = '', source, jobName, chatId } = {}) {
         const delegatedAgents = new Set();
