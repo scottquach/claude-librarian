@@ -70,7 +70,13 @@ function createSubagentDefinitions(registry) {
 
 function createParentOptions({ registry, mcpServers } = {}) {
     const parent = registry.parent;
-    const allowedTools = [...new Set([...(parent.tools ?? []), 'Agent'])];
+    const allowedTools = [
+        ...new Set([
+            ...(parent.tools ?? []),
+            'Agent',
+            ...registry.childAgents.flatMap((agent) => agent.tools ?? []),
+        ]),
+    ];
 
     return {
         pathToClaudeCodeExecutable: process.env.CLAUDE_PATH ?? 'claude',
@@ -83,7 +89,7 @@ function createParentOptions({ registry, mcpServers } = {}) {
         includePartialMessages: true,
         mcpServers: mcpServers || undefined,
         model: parent.model,
-        permissionMode: 'bypassPermissions',
+        permissionMode: 'acceptEdits',
         systemPrompt: parent.systemPrompt || undefined,
     };
 }

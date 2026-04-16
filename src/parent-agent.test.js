@@ -57,7 +57,7 @@ test('createParentOptions includes Agent tool and subagent definitions', () => {
         mcpServers: { calendar: { type: 'stdio' } },
     });
 
-    assert.deepEqual(options.allowedTools, ['Agent']);
+    assert.deepEqual(options.allowedTools, ['Agent', 'Read', 'Edit', 'mcp__calendar__get_calendar_events']);
     assert.equal(options.cwd, '/vault');
     assert.deepEqual(options.additionalDirectories, ['/shared']);
     assert.equal(options.agents['journal-ingest'].description, 'Journal specialist');
