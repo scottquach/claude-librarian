@@ -85,7 +85,7 @@ function createParentOptions({ registry, mcpServers } = {}) {
         additionalDirectories: registry.directories.slice(1),
         agents: createSubagentDefinitions(registry),
         allowedTools,
-        allowDangerouslySkipPermissions: true,
+        allowDangerouslySkipPermissions: false,
         includePartialMessages: true,
         mcpServers: mcpServers || undefined,
         model: parent.model,
