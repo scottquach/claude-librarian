@@ -57,11 +57,12 @@ test('createParentOptions includes Agent tool and subagent definitions', () => {
         mcpServers: { calendar: { type: 'stdio' } },
     });
 
-    assert.deepEqual(options.allowedTools, ['Agent', 'Read', 'Edit', 'mcp__calendar__get_calendar_events']);
+    assert.deepEqual(options.allowedTools, ['WebSearch', 'Agent', 'Read', 'Edit', 'mcp__calendar__get_calendar_events']);
     assert.equal(options.cwd, '/vault');
     assert.deepEqual(options.additionalDirectories, ['/shared']);
     assert.equal(options.agents['journal-ingest'].description, 'Journal specialist');
-    assert.equal(options.agents['calendar-integration'].tools[0], 'mcp__calendar__get_calendar_events');
+    assert.deepEqual(options.agents['journal-ingest'].tools, ['WebSearch', 'Read', 'Edit']);
+    assert.deepEqual(options.agents['calendar-integration'].tools, ['WebSearch', 'mcp__calendar__get_calendar_events']);
     assert.equal(options.systemPrompt, 'Parent instructions.');
 });
 
@@ -103,7 +104,8 @@ test('createParentAgentRunner sends prompt through parent and tracks delegated s
     assert.equal(calls.length, 1);
     assert.match(calls[0].prompt, /source: telegram/);
     assert.match(calls[0].prompt, /What meetings do I have tomorrow afternoon\?/);
-    assert.equal(calls[0].options.allowedTools[0], 'Agent');
+    assert.ok(calls[0].options.allowedTools.includes('Agent'));
+    assert.ok(calls[0].options.allowedTools.includes('WebSearch'));
     assert.deepEqual(result.delegatedAgents, ['calendar-integration']);
     assert.equal(result.output, 'Tomorrow looks busy.');
 });

@@ -1,6 +1,8 @@
 const { query } = require('@anthropic-ai/claude-agent-sdk');
 const { execFile } = require('node:child_process');
 
+const defaultTools = ['WebSearch'];
+
 const c = {
     reset: '\x1b[0m',
     dim: '\x1b[2m',
@@ -54,6 +56,10 @@ function buildInvocationPrompt({ prompt = '', source = 'unknown', jobName, chatI
     return lines.join('\n');
 }
 
+function withDefaultTools(tools = []) {
+    return [...new Set([...defaultTools, ...tools])];
+}
+
 function createSubagentDefinitions(registry) {
     return Object.fromEntries(
         registry.childAgents.map((agent) => [
@@ -62,7 +68,7 @@ function createSubagentDefinitions(registry) {
                 description: agent.description,
                 model: agent.model,
                 prompt: agent.systemPrompt,
-                tools: agent.tools,
+                tools: withDefaultTools(agent.tools),
             },
         ]),
     );
@@ -72,9 +78,9 @@ function createParentOptions({ registry, mcpServers } = {}) {
     const parent = registry.parent;
     const allowedTools = [
         ...new Set([
-            ...(parent.tools ?? []),
+            ...withDefaultTools(parent.tools ?? []),
             'Agent',
-            ...registry.childAgents.flatMap((agent) => agent.tools ?? []),
+            ...registry.childAgents.flatMap((agent) => withDefaultTools(agent.tools ?? [])),
         ]),
     ];
 
