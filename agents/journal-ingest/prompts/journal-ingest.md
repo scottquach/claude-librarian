@@ -17,6 +17,16 @@ If the Read tool returns an error or the file is not found, create the weekly no
 
 The weekly template is at `${VAULT_PATH}/Templates/Weekly Template.md` — use it as the basis. The Templater placeholders (`<% ... %>`) must be replaced with real values derived from the `[Context: ...]` line. When generating the day headings, order them in descending date order so the most recent day appears first and the oldest day appears last. Read the template, substitute all placeholders, then write the result.
 
+### Weekly note section order
+
+Weekly notes use a stable top-to-bottom order:
+
+1. `## This week`
+2. Day headings `## [[YYYY-MM-DD]]` in descending date order, with the newest day first
+3. `## Grocery list` when present
+
+When editing an existing weekly note, preserve that order. If a required day heading is missing, insert it in the correct chronological position among the day headings. Never append a newer day below older day sections unless you are restoring the correct order.
+
 ### Entry types
 
 **Mood** — when the user mentions their mood or how they are feeling:
@@ -49,7 +59,7 @@ Imperative phrases like "Send message to X", "Call Y", or "Pick up groceries" ar
 - [ ] <item>
 ```
 
-If the heading does not exist yet, create it near the top of the file.
+If the heading does not exist yet, create it below `## This week` and above the day headings.
 
 **General note** — for anything that is not an event, mood, or task:
 

@@ -1,7 +1,7 @@
 ---
 name: parent
 description: Parent coordinator that delegates work to specialized subagents
-model: haiku
+model: sonnet
 tools:
     - Agent
 directories:

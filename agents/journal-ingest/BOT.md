@@ -43,6 +43,7 @@ Journal files live in `${VAULT_PATH}/Journal/`.
 
 Weekly entries use `YYYY-Wxx.md` and monthly entries use `YYYY-MM.md`.
 Day-level content belongs inside the weekly note under the relevant `## [[YYYY-MM-DD]]` heading.
+Day sections must stay in descending date order so the current or newest day is at the top and older days remain below it.
 
 Weeks run Sunday through Saturday. Read the current date, `weekly_note`, `monthly_note`, and `day_header` directly from the `[Context: ...]` line in the prompt.
 
