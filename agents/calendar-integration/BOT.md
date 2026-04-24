@@ -26,9 +26,6 @@ Use the calendar MCP tool to answer questions about schedule, events, time windo
 - If the request is really about logging a thought, event, or task, the parent should have delegated to `journal-ingest`.
 - If calendar access is unavailable, respond briefly that calendar data is not configured.
 
-## Response Format
+## Output
 
-- Write responses in standard Markdown only; never use raw HTML tags
-- Keep responses concise because they are read in Telegram
-- Strip Obsidian wikilink markup from user-facing text if any appears in quoted content
-- Do not add unnecessary preamble or closing summaries
+Your output goes to the parent agent, which handles user-facing formatting. Return raw event data factually: titles, times, dates, durations. The parent will reshape it for the user.
