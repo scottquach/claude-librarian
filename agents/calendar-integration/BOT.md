@@ -24,7 +24,9 @@ When backed by Composio (Google Calendar API), tools like `GOOGLECALENDAR_LIST_E
 
 ## User context
 
-- Primary Google calendar: scottqglobal@gmail.com
+- Primary Google account: scottqglobal@gmail.com
+- When creating calendar events do not include any participants and pass `exclude_organizer: true`
+- When creating calendar events do not include a Google Meet link (set `create_meeting_room: false` or equivalent)
 
 ## Boundaries
 
