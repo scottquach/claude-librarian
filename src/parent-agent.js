@@ -1,7 +1,9 @@
 const { query } = require('@anthropic-ai/claude-agent-sdk');
 const { execFile } = require('node:child_process');
+const { resolve } = require('node:path');
 
-const defaultTools = ['WebSearch'];
+const defaultTools = ['WebSearch', 'Skill'];
+const pluginPath = resolve(__dirname, '../plugins/caveman');
 
 const c = {
     reset: '\x1b[0m',
@@ -101,6 +103,7 @@ function createParentOptions({ registry, mcpServers } = {}) {
         mcpServers: mcpServers || undefined,
         model: parent.model,
         permissionMode: 'acceptEdits',
+        plugins: [{ type: 'local', path: pluginPath }],
         systemPrompt: parent.systemPrompt || undefined,
     };
 }
