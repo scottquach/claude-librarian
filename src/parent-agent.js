@@ -60,7 +60,11 @@ function withDefaultTools(tools = []) {
     return [...new Set([...defaultTools, ...tools])];
 }
 
-function createSubagentDefinitions(registry) {
+function createSubagentDefinitions(registry, mcpServers = {}) {
+    const forwardedMcpServers = Object.entries(mcpServers)
+        .filter(([, config]) => config.type !== 'sdk')
+        .map(([name, config]) => ({ [name]: config }));
+
     return Object.fromEntries(
         registry.childAgents.map((agent) => [
             agent.id,
@@ -69,6 +73,7 @@ function createSubagentDefinitions(registry) {
                 model: agent.model,
                 prompt: agent.systemPrompt,
                 tools: withDefaultTools(agent.tools),
+                ...(forwardedMcpServers.length > 0 ? { mcpServers: forwardedMcpServers } : {}),
             },
         ]),
     );
@@ -89,7 +94,7 @@ function createParentOptions({ registry, mcpServers } = {}) {
         env: process.env,
         cwd: registry.directories[0],
         additionalDirectories: registry.directories.slice(1),
-        agents: createSubagentDefinitions(registry),
+        agents: createSubagentDefinitions(registry, mcpServers),
         allowedTools,
         allowDangerouslySkipPermissions: false,
         includePartialMessages: true,

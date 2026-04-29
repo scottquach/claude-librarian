@@ -13,7 +13,13 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 const registry = loadAgentRegistry(join(__dirname, 'agents', 'registry.json'));
 
 const mcpServers = {};
-if (process.env.ICAL_URLS) {
+if (process.env.COMPOSIO_CONSUMER_API_KEY) {
+    mcpServers.calendar = {
+        type: 'http',
+        url: 'https://connect.composio.dev/mcp',
+        headers: { 'x-consumer-api-key': process.env.COMPOSIO_CONSUMER_API_KEY },
+    };
+} else if (process.env.ICAL_URLS) {
     const urls = process.env.ICAL_URLS.split(',').map((u) => u.trim()).filter(Boolean);
     const labels = (process.env.ICAL_LABELS || '').split(',').map((l) => l.trim());
     mcpServers.calendar = createCalendarServer(urls, labels);

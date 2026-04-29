@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find /c/Users/scott/Repositories/claude-librarian/.claude -type f -name *.md -o -name *.json -o -name *.yaml)"
+      "Bash(find /c/Users/scott/Repositories/claude-librarian/.claude -type f -name *.md -o -name *.json -o -name *.yaml)",
+      "WebFetch(domain:composio.dev)",
+      "WebFetch(domain:docs.composio.dev)",
+      "WebFetch(domain:docs.claude.com)",
+      "WebFetch(domain:mcp.composio.dev)"
     ]
   }
 }
