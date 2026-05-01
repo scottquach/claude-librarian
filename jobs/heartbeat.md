@@ -19,21 +19,23 @@ Also read the conversation context (provided above): find the most recent messag
 
 With the gathered context, answer: **is anything worth surfacing right now?**
 
-Surface something if ANY of these are true:
-- A calendar event starts in 60–120 minutes (prep window)
-- It is past 4pm, tasks remain unchecked, and the user has been inactive for 3+ hours
-- It is past 7pm and no rollover or reflection has happened today (check conversation context)
-- A task has a due date of today and is not yet checked off
-
-Schedule a silent follow-up (and output `[SKIP]`) if:
-- A calendar event is 2–4 hours away (not yet in the prep window)
-- Something might need attention later but not right now
-- Use `mcp__scheduler__schedule_task` with a one-shot ISO 8601 datetime ~90 minutes from now and a prompt identical to this job prompt
+**Check skip conditions first.** If any skip condition below is true, output `[SKIP]` immediately without evaluating surface conditions.
 
 Output `[SKIP]` with no follow-up if:
 - The user was active within the last 2 hours (check the `[HH:MM]` timestamps in conversation context)
 - No tasks are due today and no events are coming up
 - It is before 9am or after 9pm with nothing urgent
+
+Schedule a silent follow-up (and output `[SKIP]`) if:
+- A calendar event is >2 hours and ≤4 hours away (not yet in the prep window)
+- Something might need attention later but not right now
+- Use `mcp__scheduler__schedule_task` with a one-shot ISO 8601 datetime ~90 minutes from now and this exact prompt: "Run a heartbeat check: gather today's unchecked tasks and any calendar events in the next 3 hours, check conversation context for the most recent [HH:MM] timestamp to determine last activity, then decide if anything is worth surfacing. Surface if: a calendar event starts in 60–120 minutes, or it is past 4pm with unchecked tasks and 3+ hours of inactivity, or it is past 7pm with no rollover today, or a task is due today. If an event is >2 hours and ≤4 hours away, schedule another follow-up 90 minutes from now with this same prompt. Otherwise output [SKIP]."
+
+Surface something if ANY of these are true:
+- A calendar event starts in 60–120 minutes (prep window)
+- It is past 4pm, tasks remain unchecked, and the user has been inactive for 3+ hours
+- It is past 7pm and no rollover or reflection has happened today (check conversation context)
+- A task has a due date of today and is not yet checked off
 
 ## Step 3: Act
 
