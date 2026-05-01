@@ -65,7 +65,10 @@ function formatRecentMessages(messages) {
     return messages
         .map((message) => {
             const roleLabel = message.role === 'assistant' ? 'Assistant' : 'User';
-            return `- ${roleLabel}: ${message.content}`;
+            const time = message.createdAt
+                ? new Date(message.createdAt).toISOString().slice(11, 16)
+                : '--:--';
+            return `- [${time}] ${roleLabel}: ${message.content}`;
         })
         .join('\n');
 }
