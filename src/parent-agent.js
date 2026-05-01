@@ -1,7 +1,9 @@
 const { query } = require('@anthropic-ai/claude-agent-sdk');
 const { execFile } = require('node:child_process');
+const { resolve } = require('node:path');
 
-const defaultTools = ['WebSearch'];
+const defaultTools = ['WebSearch', 'Skill'];
+const pluginPath = resolve(__dirname, '../plugins/caveman');
 
 const c = {
     reset: '\x1b[0m',
@@ -60,7 +62,11 @@ function withDefaultTools(tools = []) {
     return [...new Set([...defaultTools, ...tools])];
 }
 
-function createSubagentDefinitions(registry) {
+function createSubagentDefinitions(registry, mcpServers = {}) {
+    const forwardedMcpServers = Object.entries(mcpServers)
+        .filter(([, config]) => config.type !== 'sdk')
+        .map(([name, config]) => ({ [name]: config }));
+
     return Object.fromEntries(
         registry.childAgents.map((agent) => [
             agent.id,
@@ -69,6 +75,7 @@ function createSubagentDefinitions(registry) {
                 model: agent.model,
                 prompt: agent.systemPrompt,
                 tools: withDefaultTools(agent.tools),
+                ...(forwardedMcpServers.length > 0 ? { mcpServers: forwardedMcpServers } : {}),
             },
         ]),
     );
@@ -89,13 +96,14 @@ function createParentOptions({ registry, mcpServers } = {}) {
         env: process.env,
         cwd: registry.directories[0],
         additionalDirectories: registry.directories.slice(1),
-        agents: createSubagentDefinitions(registry),
+        agents: createSubagentDefinitions(registry, mcpServers),
         allowedTools,
         allowDangerouslySkipPermissions: false,
         includePartialMessages: true,
         mcpServers: mcpServers || undefined,
         model: parent.model,
         permissionMode: 'acceptEdits',
+        plugins: [{ type: 'local', path: pluginPath }],
         systemPrompt: parent.systemPrompt || undefined,
     };
 }

@@ -29,13 +29,9 @@ When creating new tasks, capitalize the first word of the task text.
 
 Do not delete files or large amounts of content without secondary confirmation from the user.
 
-## Response Format
+## Output
 
-- Write responses in standard Markdown only; never use raw HTML tags
-- Keep responses concise because they are read in Telegram
-- Strip Obsidian markup (e.g., `[[Jenna]]` → `Jenna`, `[[Jenna|Jen]]` → `Jen`) from user-facing text, including quoted or summarized content
-- Keep Obsidian markup only when writing back into the vault or when a helper prompt explicitly asks for it
-- Do not add unnecessary preamble or closing summaries
+Your output goes to the parent agent, which handles user-facing formatting. Be terse and factual: confirm what was logged, where, and any decisions you had to make. Preserve Obsidian markup (wikilinks, tags) freely — the parent will strip it before replying to the user. When **writing into the vault**, follow the vault's markup conventions (wikilinks, `- [ ]` checkboxes, tags) exactly.
 
 ## Vault Structure
 

@@ -4,15 +4,19 @@ cron: '30 7 * * *'
 telegram: true
 ---
 
-Check today's day header in the current weekly note for unchecked tasks.
+In parallel:
 
-If the `get_calendar_events` tool is available, also check today's calendar events using `start_date=today` and `end_date=today`.
+1. Check today's day header in the current weekly note for unchecked tasks (delegate to `task-review`).
+2. If the `get_calendar_events` tool is available, check today's calendar events using `start_date=today` and `end_date=today` (delegate to `calendar-integration`).
+3. Ask `task-review` for **thread recall**: scan the current weekly note and the previous weekly note for unfulfilled intentions ("I should X", "I want to X", "I need to X", "I'd like to X", "X would be nice/cool") from the last 7 days that never became a task and aren't already in `This week` or any day-header task list. Return at most 2 threads, only if they seem clearly worth surfacing. If nothing stands out, return nothing.
 
-If there are no unchecked tasks for today and no calendar events for today, output exactly: `[SKIP]`
+If there are no unchecked tasks for today, no calendar events for today, and no recall threads, output exactly: `[SKIP]`
 
-If there are unchecked tasks or calendar events, send a brief Telegram-friendly morning reminder with just:
+Otherwise, send a brief Telegram-friendly morning reminder with:
+
 - A short opening line that frames this as today's plan
 - The unchecked tasks for today as a clean checklist, if any
 - A short `Calendar` section with today's events in time order, if any
+- A short `Loose threads` section with at most 2 lines, only if recall returned something. Phrase each as a gentle nudge (e.g. `Still wanted to fix the bike?`), not as a new task. Do not include this section if recall returned nothing.
 
 Do not ask questions. Do not suggest new tasks. Do not include tasks from other days.

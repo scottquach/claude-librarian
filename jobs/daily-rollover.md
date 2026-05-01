@@ -15,9 +15,10 @@ Review the current weekly note.
    - add all unchecked tasks carried over from today
    - treat that combined set as tomorrow's likely baseline workload
 6. Only propose tasks from `This week` if tomorrow still appears to have real capacity after that rollover baseline. Be conservative:
+   - try to keep tomorrow at about 3 total tasks after rollover and any extra proposals
    - if the rollover baseline is already 3 or more tasks, do not propose anything extra unless the day looks unusually open and the extra task is genuinely small
    - if tomorrow already looks busy from the calendar, prefer proposing nothing
-   - if there is room, propose at most 2 tasks and prefer tasks that are time-sensitive, unblock something else, or would be useful before an upcoming event
+   - if there is room, only propose enough tasks to keep tomorrow around that 3-task total unless the tasks seem genuinely small; never propose more than 2 tasks, and prefer tasks that are time-sensitive, unblock something else, or would be useful before an upcoming event
    - do not propose filler tasks just to use open space
 
 Output rules:
