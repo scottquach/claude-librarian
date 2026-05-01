@@ -8,9 +8,21 @@ const { setupBot } = require('./src/bot-setup');
 const { scheduleJobs } = require('./src/job-scheduler');
 const { createTranscriber } = require('./src/transcribe');
 const { createCalendarServer } = require('./src/mcp/calendar');
+const { createDynamicScheduler } = require('./src/dynamic-scheduler');
+const { createSchedulerServer } = require('./src/mcp/scheduler');
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const registry = loadAgentRegistry(join(__dirname, 'agents', 'registry.json'));
+
+// runParentAgent is injected after the runner is created (deferred pattern)
+const schedulerDeps = {
+    bot,
+    runParentAgent: null,
+    defaultChatId: process.env.DEFAULT_CHAT_ID,
+    persistPath: join(__dirname, 'schedules', 'dynamic-schedules.json'),
+    timezone: process.env.BOT_TIMEZONE ?? 'America/Chicago',
+};
+const dynamicScheduler = createDynamicScheduler(schedulerDeps);
 
 const mcpServers = {};
 if (process.env.ICAL_URLS) {
@@ -18,11 +30,15 @@ if (process.env.ICAL_URLS) {
     const labels = (process.env.ICAL_LABELS || '').split(',').map((l) => l.trim());
     mcpServers.calendar = createCalendarServer(urls, labels);
 }
+mcpServers.scheduler = createSchedulerServer(dynamicScheduler);
 
 const runParentAgent = createParentAgentRunner({
     registry,
     mcpServers: Object.keys(mcpServers).length > 0 ? mcpServers : undefined,
 });
+
+schedulerDeps.runParentAgent = runParentAgent;
+dynamicScheduler.reloadFromDisk();
 const conversationStore = createConversationStateStore();
 
 setupBot(bot, {

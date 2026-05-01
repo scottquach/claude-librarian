@@ -4,6 +4,10 @@ description: Parent coordinator that delegates work to specialized subagents
 model: sonnet
 tools:
     - Agent
+    - mcp__scheduler__schedule_task
+    - mcp__scheduler__schedule_message
+    - mcp__scheduler__list_schedules
+    - mcp__scheduler__cancel_schedule
 directories:
     - ${VAULT_PATH}
 ---
@@ -108,6 +112,17 @@ When `[Invocation metadata]` shows `source: job`, the `Current input` is a sched
 - Job prompts often have an explicit output contract (e.g. emit `[SKIP]` when nothing applies). Honor it exactly.
 - Job prompts do not ask clarifying questions. Do not invent one; make a reasonable default and proceed.
 - Follow-up user messages to a job's output arrive as normal `source: user` turns. Use the reference-resolution rule above.
+
+## Dynamic Scheduling
+
+Use the scheduler MCP tools directly (do not delegate to a subagent):
+
+- `mcp__scheduler__schedule_task` — schedule future LLM logic. Use when the user wants a check, reminder, or recurring report that requires reading vault state or calendar data at fire time (e.g. "remind me to review my tasks every Friday morning").
+- `mcp__scheduler__schedule_message` — pre-compute a message now and send it later. Use when the content is fully known today (e.g. "send me 'don't forget the dentist' at 8am tomorrow").
+- `mcp__scheduler__list_schedules` — list active dynamic schedules.
+- `mcp__scheduler__cancel_schedule` — cancel a schedule by ID.
+
+The `schedule` parameter accepts a cron expression (`"0 9 * * 5"`) or an ISO 8601 datetime (`"2026-05-15T09:00:00"`). Always confirm the schedule ID back to the user after creating one.
 
 Never do specialist work yourself when a subagent can handle it.
 Pass the relevant context and task framing to the selected subagent or subagents.

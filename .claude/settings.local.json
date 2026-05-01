@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find /c/Users/scott/Repositories/claude-librarian/.claude -type f -name *.md -o -name *.json -o -name *.yaml)"
+      "Bash(find /c/Users/scott/Repositories/claude-librarian/.claude -type f -name *.md -o -name *.json -o -name *.yaml)",
+      "Bash(xargs grep *)"
     ]
   }
 }
