@@ -77,7 +77,8 @@ function createDynamicScheduler(deps) {
                         prompt: record.prompt,
                         source: 'scheduler',
                     });
-                    if (chatId) {
+                    const shouldSkip = output.trimStart().startsWith('[SKIP]');
+                    if (chatId && !shouldSkip) {
                         await deps.bot.telegram
                             .sendMessage(chatId, markdownToTelegramHtml(output), { parse_mode: 'HTML' })
                             .catch((err) => console.error(`[scheduler] telegram send failed: ${err.message}`));

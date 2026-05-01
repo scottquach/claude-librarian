@@ -66,7 +66,12 @@ function formatRecentMessages(messages) {
         .map((message) => {
             const roleLabel = message.role === 'assistant' ? 'Assistant' : 'User';
             const time = message.createdAt
-                ? new Date(message.createdAt).toISOString().slice(11, 16)
+                ? new Intl.DateTimeFormat('en-GB', {
+                      timeZone: process.env.BOT_TIMEZONE ?? 'America/Chicago',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: false,
+                  }).format(new Date(message.createdAt))
                 : '--:--';
             return `- [${time}] ${roleLabel}: ${message.content}`;
         })

@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 const { createConversationStateStore, createDefaultState } = require('./conversation-state');
 
 test('formatRecentMessages via buildPrompt includes HH:MM timestamps in formatted messages', () => {
+    process.env.BOT_TIMEZONE = 'America/Chicago';
+
     const store = createConversationStateStore({
         conversationDirectoryPath: require('node:os').tmpdir(),
     });
@@ -19,5 +21,5 @@ test('formatRecentMessages via buildPrompt includes HH:MM timestamps in formatte
     store.save(state);
     const prompt = store.buildPrompt({ chatId: 'test-chat', currentInput: 'ping' });
 
-    assert.match(prompt, /\[\d{2}:\d{2}\]/);
+    assert.match(prompt, /\[09:30\]/);
 });
