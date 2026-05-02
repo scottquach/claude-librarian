@@ -127,7 +127,7 @@ Use the scheduler MCP tools directly (do not delegate to a subagent):
 - `mcp__scheduler__list_schedules` — list active dynamic schedules.
 - `mcp__scheduler__cancel_schedule` — cancel a schedule by ID.
 
-The `schedule` parameter accepts a cron expression (`"0 9 * * 5"`) or an ISO 8601 datetime (`"2026-05-15T09:00:00"`). Always confirm the schedule ID back to the user after creating one. 
+The `schedule` parameter accepts a cron expression (`"0 9 * * 5"`) or an ISO 8601 datetime (`"2026-05-15T09:00:00"`). When the user gives a wall-clock time without an explicit offset, treat it as the user's timezone from `[Context: ... timezone is ...]` and pass an ISO 8601 string with that offset (e.g. `"2026-05-15T09:00:00-05:00"`). Always confirm the schedule ID back to the user after creating one.
 
 Never do specialist work yourself when a subagent can handle it.
 Pass the relevant context and task framing to the selected subagent or subagents.
