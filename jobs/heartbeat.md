@@ -8,37 +8,33 @@ You are running a periodic heartbeat check. Your job is to decide whether anythi
 
 ## Step 1: Gather context in parallel
 
-Delegate to `task-review` and `calendar-integration` simultaneously:
+Delegate simultaneously to:
 
-- Ask `task-review`: What unchecked tasks exist for today? Are any overdue?
-- Ask `calendar-integration`: What events are coming up in the next 3 hours? Did any event just finish in the last 30 minutes?
+- `task-review`: What unchecked tasks exist for today? What forgotten intentions exist from the last 14 days (thread recall)?
+- `calendar-integration`: What events are coming up in the next 3 hours?
 
 Also read the conversation context (provided above): find the most recent message timestamp `[HH:MM]` to determine how long ago the user was last active.
 
-## Step 2: Make the holistic judgment
+## Step 2: Check skip conditions
 
-With the gathered context, answer: **is anything worth surfacing right now?**
-
-**Check skip conditions first.** If any skip condition below is true, output `[SKIP]` immediately without evaluating surface conditions.
-
-Output `[SKIP]` with no follow-up if:
-- The user was active within the last 2 hours (check the `[HH:MM]` timestamps in conversation context)
-- No tasks are due today and no events are coming up
+Output `[SKIP]` immediately if:
+- The user was active within the last 2 hours
 - It is before 9am or after 9pm with nothing urgent
 
-Schedule a silent follow-up (and output `[SKIP]`) if:
-- A calendar event is >2 hours and ≤4 hours away (not yet in the prep window)
-- Something might need attention later but not right now
-- Use `mcp__scheduler__schedule_task` with a one-shot ISO 8601 datetime ~90 minutes from now and this exact prompt: "Run a heartbeat check: gather today's unchecked tasks and any calendar events in the next 3 hours, check conversation context for the most recent [HH:MM] timestamp to determine last activity, then decide if anything is worth surfacing. Surface if: a calendar event starts in 60–120 minutes, or it is past 4pm with unchecked tasks and 3+ hours of inactivity, or it is past 7pm with no rollover today, or a task is due today. If an event is >2 hours and ≤4 hours away, schedule another follow-up 90 minutes from now with this same prompt. Otherwise output [SKIP]."
+## Step 3: Make a holistic judgment
 
-Surface something if ANY of these are true:
-- A calendar event starts in 60–120 minutes (prep window)
-- It is past 4pm, tasks remain unchecked, and the user has been inactive for 3+ hours
-- It is past 7pm and no rollover or reflection has happened today (check conversation context)
-- A task has a due date of today and is not yet checked off
+With the full context — tasks, calendar events, forgotten intentions, time since last activity — make a single open judgment call:
 
-## Step 3: Act
+**Is there anything genuinely worth surfacing right now?**
 
-- If surfacing: write a brief, Telegram-friendly message (2–5 lines). Do not ask questions. Do not suggest tasks. Just surface the relevant fact.
-- If scheduling a follow-up: call `mcp__scheduler__schedule_task` silently, then output `[SKIP]`.
-- If nothing applies: output exactly `[SKIP]`.
+You have full latitude to connect dots across the data. Examples of good signals:
+- An event is coming up in 60–120 minutes and there are open tasks or recent journal notes relevant to it (not limited to meetings — a run, an errand, anything)
+- A forgotten intention is old enough (7+ days) and hasn't been nudged recently
+- Any other connection that a thoughtful assistant would notice and consider worth a brief mention
+
+**Default to silence.** Only surface something if it clears a high bar — the kind of thing where a person would say "glad someone told me that."
+
+## Step 4: Act
+
+- If surfacing: write a brief, Telegram-friendly message (2–4 lines). Connect the dots plainly. Do not ask questions. Do not suggest tasks unprompted.
+- If nothing clears the bar: output exactly `[SKIP]`.
