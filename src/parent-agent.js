@@ -1,8 +1,11 @@
 const { query } = require('@anthropic-ai/claude-agent-sdk');
 const { execFile } = require('node:child_process');
 const { resolve } = require('node:path');
+const { appendSkillPrompt } = require('./skill-loader');
+const { selectSkills } = require('./skill-selector');
+const { toolsForSkills } = require('./tool-policy');
 
-const defaultTools = ['WebSearch', 'Skill'];
+const defaultTools = [];
 const pluginPath = resolve(__dirname, '../plugins/caveman');
 
 const c = {
@@ -81,15 +84,10 @@ function createSubagentDefinitions(registry, mcpServers = {}) {
     );
 }
 
-function createParentOptions({ registry, mcpServers } = {}) {
+function createParentOptions({ registry, mcpServers, selectedSkills = [] } = {}) {
     const parent = registry.parent;
-    const allowedTools = [
-        ...new Set([
-            ...withDefaultTools(parent.tools ?? []),
-            'Agent',
-            ...registry.childAgents.flatMap((agent) => withDefaultTools(agent.tools ?? [])),
-        ]),
-    ];
+    const allowedTools = toolsForSkills(selectedSkills, { includeAgentFallback: true });
+    const systemPrompt = appendSkillPrompt(parent.systemPrompt || '', selectedSkills);
 
     return {
         pathToClaudeCodeExecutable: process.env.CLAUDE_PATH ?? 'claude',
@@ -104,7 +102,7 @@ function createParentOptions({ registry, mcpServers } = {}) {
         model: parent.model,
         permissionMode: 'acceptEdits',
         plugins: [{ type: 'local', path: pluginPath }],
-        systemPrompt: parent.systemPrompt || undefined,
+        systemPrompt: systemPrompt || undefined,
     };
 }
 
@@ -132,11 +130,13 @@ function checkClaudeExecutable(claudePath) {
 }
 
 function createParentAgentRunner({ registry, mcpServers, queryFn = query } = {}) {
-    const options = createParentOptions({ registry, mcpServers });
-    checkClaudeExecutable(options.pathToClaudeCodeExecutable ?? 'claude');
+    const baseOptions = createParentOptions({ registry, mcpServers });
+    checkClaudeExecutable(baseOptions.pathToClaudeCodeExecutable ?? 'claude');
 
     return async function runParentAgent({ prompt = '', source, jobName, chatId } = {}) {
         const delegatedAgents = new Set();
+        const selectedSkills = selectSkills({ jobName, source, text: prompt });
+        const options = createParentOptions({ registry, mcpServers, selectedSkills });
         const finalPrompt = buildInvocationPrompt({ chatId, jobName, prompt, source });
         let result = null;
 
@@ -160,6 +160,7 @@ function createParentAgentRunner({ registry, mcpServers, queryFn = query } = {})
         return {
             delegatedAgents: [...delegatedAgents],
             output: result ?? '',
+            selectedSkills,
         };
     };
 }

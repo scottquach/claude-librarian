@@ -1,6 +1,6 @@
 // src/bot-config-loader.js
 const { readFileSync, readdirSync: fsReaddirSync } = require('node:fs');
-const { dirname, join } = require('node:path');
+const { dirname, join, posix } = require('node:path');
 const { parse: parseYaml } = require('yaml');
 
 function parseFrontmatter(content) {
@@ -22,6 +22,10 @@ function expandEnvVars(str, env) {
   return str.replace(/\$\{([^}]+)\}/g, (_, key) => (key in env ? env[key] : _));
 }
 
+function joinPath(baseDir, ...parts) {
+  return baseDir.startsWith('/') ? posix.join(baseDir, ...parts) : join(baseDir, ...parts);
+}
+
 function loadBotConfig(botMdPath, promptsDir, opts = {}) {
   const readFile = opts.readFile ?? ((p) => readFileSync(p, 'utf8'));
   const readdirSync = opts.readdirSync ?? ((d) => fsReaddirSync(d));
@@ -33,7 +37,7 @@ function loadBotConfig(botMdPath, promptsDir, opts = {}) {
   // Prepend CLAUDE.md identity if present
   let prompt = '';
   try {
-    const identity = readFile(join(configDir, 'CLAUDE.md')).trim();
+    const identity = readFile(joinPath(configDir, 'CLAUDE.md')).trim();
     if (identity) prompt = identity + '\n\n---\n\n';
   } catch {}
 
@@ -48,7 +52,7 @@ function loadBotConfig(botMdPath, promptsDir, opts = {}) {
 
     for (const filename of files) {
       try {
-        prompt += '\n\n---\n\n' + readFile(join(promptsDir, filename)).trim();
+        prompt += '\n\n---\n\n' + readFile(joinPath(promptsDir, filename)).trim();
       } catch {}
     }
   } catch {}

@@ -1,10 +1,13 @@
 const { readFileSync, readdirSync: fsReaddirSync } = require('node:fs');
-const { dirname, isAbsolute, join, resolve } = require('node:path');
+const { dirname, isAbsolute, join, posix, resolve } = require('node:path');
 
 const { loadBotConfig } = require('./bot-config-loader');
 
 function resolvePath(baseDir, targetPath) {
     if (!targetPath) return null;
+    if (baseDir.startsWith('/') && !isAbsolute(targetPath)) {
+        return posix.resolve(baseDir, targetPath);
+    }
     return isAbsolute(targetPath) ? targetPath : resolve(baseDir, targetPath);
 }
 

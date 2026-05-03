@@ -51,19 +51,21 @@ test('buildInvocationPrompt includes source metadata', () => {
     assert.match(prompt, /Body prompt/);
 });
 
-test('createParentOptions includes Agent tool and subagent definitions', () => {
+test('createParentOptions includes scoped tools and subagent definitions', () => {
     const options = createParentOptions({
         registry: makeRegistry(),
         mcpServers: { calendar: { type: 'stdio' } },
+        selectedSkills: ['journal'],
     });
 
-    assert.deepEqual(options.allowedTools, ['WebSearch', 'Agent', 'Read', 'Edit', 'mcp__calendar__get_calendar_events']);
+    assert.deepEqual(options.allowedTools, ['Agent', 'Read', 'Write', 'Edit']);
     assert.equal(options.cwd, '/vault');
     assert.deepEqual(options.additionalDirectories, ['/shared']);
     assert.equal(options.agents['journal-ingest'].description, 'Journal specialist');
-    assert.deepEqual(options.agents['journal-ingest'].tools, ['WebSearch', 'Read', 'Edit']);
-    assert.deepEqual(options.agents['calendar-integration'].tools, ['WebSearch', 'mcp__calendar__get_calendar_events']);
-    assert.equal(options.systemPrompt, 'Parent instructions.');
+    assert.deepEqual(options.agents['journal-ingest'].tools, ['Read', 'Edit']);
+    assert.deepEqual(options.agents['calendar-integration'].tools, ['mcp__calendar__get_calendar_events']);
+    assert.match(options.systemPrompt, /Parent instructions\./);
+    assert.match(options.systemPrompt, /Loaded Skill: journal/);
 });
 
 test('createParentAgentRunner sends prompt through parent and tracks delegated subagents', async () => {
@@ -105,7 +107,8 @@ test('createParentAgentRunner sends prompt through parent and tracks delegated s
     assert.match(calls[0].prompt, /source: telegram/);
     assert.match(calls[0].prompt, /What meetings do I have tomorrow afternoon\?/);
     assert.ok(calls[0].options.allowedTools.includes('Agent'));
-    assert.ok(calls[0].options.allowedTools.includes('WebSearch'));
+    assert.ok(calls[0].options.allowedTools.includes('mcp__calendar'));
     assert.deepEqual(result.delegatedAgents, ['calendar-integration']);
+    assert.deepEqual(result.selectedSkills, ['calendar']);
     assert.equal(result.output, 'Tomorrow looks busy.');
 });
