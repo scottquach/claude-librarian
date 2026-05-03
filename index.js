@@ -31,6 +31,11 @@ if (process.env.COMPOSIO_CONSUMER_API_KEY) {
         url: 'https://connect.composio.dev/mcp',
         headers: { 'x-consumer-api-key': process.env.COMPOSIO_CONSUMER_API_KEY },
     };
+    mcpServers.strava = {
+        type: 'http',
+        url: 'https://connect.composio.dev/mcp',
+        headers: { 'x-consumer-api-key': process.env.COMPOSIO_CONSUMER_API_KEY },
+    };
 } else if (process.env.ICAL_URLS) {
     const urls = process.env.ICAL_URLS.split(',').map((u) => u.trim()).filter(Boolean);
     const labels = (process.env.ICAL_LABELS || '').split(',').map((l) => l.trim());

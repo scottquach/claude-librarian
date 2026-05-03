@@ -6,7 +6,10 @@
       "WebFetch(domain:composio.dev)",
       "WebFetch(domain:docs.composio.dev)",
       "WebFetch(domain:docs.claude.com)",
-      "WebFetch(domain:mcp.composio.dev)"
+      "WebFetch(domain:mcp.composio.dev)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\scott\\\\Repositories\\\\claude-librarian\" -Recurse -Depth 2)",
+      "Bash(Select-Object -Property FullName, PSIsContainer)",
+      "Bash(Sort-Object FullName)"
     ]
   }
 }

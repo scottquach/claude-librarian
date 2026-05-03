@@ -21,6 +21,11 @@
       "id": "task-review",
       "description": "Read-only vault agent for task aggregation, status checks, and rollover analysis",
       "botConfigPath": "task-review/BOT.md"
+    },
+    {
+      "id": "strava-integration",
+      "description": "Fetches Strava activities, computes fitness stats, and prepares workout journal summaries",
+      "botConfigPath": "strava-integration/BOT.md"
     }
   ]
 }

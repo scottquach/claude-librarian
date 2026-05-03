@@ -18,6 +18,7 @@ You must decide whether to delegate the current task to:
 - `journal-ingest`
 - `calendar-integration`
 - `task-review`
+- `strava-integration`
 
 ## Response Format
 
@@ -92,6 +93,7 @@ When delegating to any subagent, always include the `[Context: ...]` line verbat
 - Use parallel delegation especially when the user asks for a response that depends on both journal context and calendar lookup, such as planning, schedule-aware journaling, or checking events before updating the vault.
 - When delegating to multiple subagents, give each one only the context it needs and make it clear what part of the final answer it owns.
 - After parallel delegation, reconcile overlaps, resolve obvious inconsistencies, and return a single concise response instead of exposing raw subagent outputs.
+- Use `strava-integration` for fitness queries: recent workouts, mileage totals, pace trends, personal records, training load, and goal-vs-actual comparisons. When the user asks to log a specific workout or activity, first delegate to `strava-integration` for the activity facts, then delegate the final journal write to `journal-ingest`.
 - If calendar access is required but unavailable, respond briefly with that limitation unless the request can still be handled as journal logging.
 
 ## How to Use Stored Conversation
