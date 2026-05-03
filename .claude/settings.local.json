@@ -9,7 +9,9 @@
       "WebFetch(domain:mcp.composio.dev)",
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\scott\\\\Repositories\\\\claude-librarian\" -Recurse -Depth 2)",
       "Bash(Select-Object -Property FullName, PSIsContainer)",
-      "Bash(Sort-Object FullName)"
+      "Bash(Sort-Object FullName)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\scott\\\\Repositories\\\\claude-librarian\" -Force)",
+      "Bash(Select-Object Name, PSIsContainer)"
     ]
   }
 }

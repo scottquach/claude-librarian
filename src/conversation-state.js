@@ -4,7 +4,7 @@ const { buildContextString, computeDateContext } = require('./date-context');
 
 const CONVERSATION_STATE_VERSION = 1;
 const DEFAULT_MAX_MESSAGES = 40;
-const DEFAULT_CONTEXT_WINDOW = 10;
+const DEFAULT_CONTEXT_WINDOW = 8;
 const DEFAULT_CONVERSATION_DIRECTORY_PATH = join(__dirname, '..', 'conversations', 'chats');
 
 function toSafeFileName(chatId) {
