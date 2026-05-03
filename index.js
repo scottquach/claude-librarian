@@ -42,6 +42,7 @@ if (process.env.COMPOSIO_CONSUMER_API_KEY) {
     mcpServers.calendar = createCalendarServer(urls, labels);
 }
 mcpServers.scheduler = createSchedulerServer(dynamicScheduler);
+console.log(`[mcp] configured servers: ${Object.keys(mcpServers).join(', ') || 'none'}`);
 
 const runParentAgent = createParentAgentRunner({
     registry,

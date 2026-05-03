@@ -1,3 +1,12 @@
+---
+name: journal
+description: Use for journal capture, task logging, grocery updates, mood/event logging, and vault-writing workflows.
+tools:
+  - Read
+  - Write
+  - Edit
+---
+
 # Journal Skill
 
 Use this skill for journal capture, task logging, grocery updates, mood/event logging, and vault-writing workflows.

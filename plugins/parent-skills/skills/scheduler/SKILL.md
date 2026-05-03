@@ -1,3 +1,13 @@
+---
+name: scheduler
+description: Use for one-shot reminders, recurring schedules, listing active schedules, and canceling schedules.
+tools:
+  - mcp__scheduler__schedule_task
+  - mcp__scheduler__schedule_message
+  - mcp__scheduler__list_schedules
+  - mcp__scheduler__cancel_schedule
+---
+
 # Scheduler Skill
 
 Use this skill for one-shot reminders, recurring schedules, listing active schedules, and canceling schedules.

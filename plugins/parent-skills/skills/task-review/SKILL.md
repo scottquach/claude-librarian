@@ -1,3 +1,10 @@
+---
+name: task-review
+description: Use for read-only vault task aggregation, task status checks, rollover analysis, and thread recall from recent journal notes.
+tools:
+  - Read
+---
+
 # Task Review Skill
 
 Use this skill for read-only vault task aggregation, task status checks, rollover analysis, and thread recall from recent journal notes.

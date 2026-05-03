@@ -1,3 +1,11 @@
+---
+name: strava
+description: Use for Strava activity lookups, fitness stats, workout summaries, and workout facts for journal logging.
+tools:
+  - Read
+  - mcp__strava__*
+---
+
 # Strava Skill
 
 Use this skill for Strava activity lookups, fitness stats, workout summaries, and workout facts for journal logging.

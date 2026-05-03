@@ -1,12 +1,32 @@
-const { query } = require('@anthropic-ai/claude-agent-sdk');
 const { execFile } = require('node:child_process');
+const { readFileSync, readdirSync } = require('node:fs');
 const { resolve } = require('node:path');
-const { appendSkillPrompt } = require('./skill-loader');
-const { selectSkills } = require('./skill-selector');
-const { toolsForSkills } = require('./tool-policy');
+const { availableSkills, parseToolsFromFrontmatter, toolsForSkills } = require('./tool-policy');
 
-const defaultTools = [];
 const pluginPath = resolve(__dirname, '../plugins/caveman');
+const parentSkillsPluginPath = resolve(__dirname, '../plugins/parent-skills');
+
+/**
+ * Read every subdirectory of plugins/parent-skills/skills/ and extract its
+ * tool grants from SKILL.md frontmatter.  Returns a map of skill name →
+ * allowed tools, sorted alphabetically so the order is deterministic.
+ */
+function discoverSkillPolicy(pluginPath) {
+    const skillsDir = resolve(pluginPath, 'skills');
+    const dirs = readdirSync(skillsDir, { withFileTypes: true })
+        .filter((entry) => entry.isDirectory())
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+    const policy = {};
+    for (const dir of dirs) {
+        const content = readFileSync(resolve(skillsDir, dir.name, 'SKILL.md'), 'utf8');
+        policy[dir.name] = parseToolsFromFrontmatter(content);
+    }
+    return policy;
+}
+
+const SKILL_POLICY = discoverSkillPolicy(parentSkillsPluginPath);
+const PARENT_SKILLS = Object.freeze(Object.keys(SKILL_POLICY));
 
 const c = {
     reset: '\x1b[0m',
@@ -18,7 +38,23 @@ const c = {
 
 function logStreamEvent(event) {
     const type = event.type;
-    if (type === 'system') return;
+
+    if (type === 'system') {
+        if (event.subtype === 'init') {
+            for (const server of event.mcp_servers ?? []) {
+                const ok = server.status === 'connected';
+                const color = ok ? c.green : c.yellow;
+                process.stdout.write(`${color}[mcp] ${server.name}: ${server.status}${c.reset}\n`);
+            }
+            const mcpTools = (event.tools ?? []).filter((t) => t.startsWith('mcp__'));
+            if (mcpTools.length > 0) {
+                process.stdout.write(`${c.dim}[mcp tools] ${mcpTools.join(', ')}${c.reset}\n`);
+            } else {
+                process.stdout.write(`${c.yellow}[mcp tools] none registered${c.reset}\n`);
+            }
+        }
+        return;
+    }
 
     if (type === 'assistant') {
         const blocks = event.message?.content ?? [];
@@ -49,10 +85,7 @@ function logStreamEvent(event) {
 }
 
 function buildInvocationPrompt({ prompt = '', source = 'unknown', jobName, chatId }) {
-    const lines = [
-        '[Invocation metadata]',
-        `source: ${source}`,
-    ];
+    const lines = ['[Invocation metadata]', `source: ${source}`];
 
     if (jobName) lines.push(`job_name: ${jobName}`);
     if (chatId) lines.push(`chat_id: ${chatId}`);
@@ -61,58 +94,41 @@ function buildInvocationPrompt({ prompt = '', source = 'unknown', jobName, chatI
     return lines.join('\n');
 }
 
-function withDefaultTools(tools = []) {
-    return [...new Set([...defaultTools, ...tools])];
-}
-
-function createSubagentDefinitions(registry, mcpServers = {}) {
-    const forwardedMcpServers = Object.entries(mcpServers)
-        .filter(([, config]) => config.type !== 'sdk')
-        .map(([name, config]) => ({ [name]: config }));
-
-    return Object.fromEntries(
-        registry.childAgents.map((agent) => [
-            agent.id,
-            {
-                description: agent.description,
-                model: agent.model,
-                prompt: agent.systemPrompt,
-                tools: withDefaultTools(agent.tools),
-                ...(forwardedMcpServers.length > 0 ? { mcpServers: forwardedMcpServers } : {}),
-            },
-        ]),
-    );
-}
-
-function createParentOptions({ registry, mcpServers, selectedSkills = [] } = {}) {
+function createParentOptions({ registry, mcpServers } = {}) {
     const parent = registry.parent;
-    const allowedTools = toolsForSkills(selectedSkills, { includeAgentFallback: true });
-    const systemPrompt = appendSkillPrompt(parent.systemPrompt || '', selectedSkills);
+    const activeSkills = availableSkills(SKILL_POLICY, { mcpServers });
+    const allowedTools = toolsForSkills(activeSkills, SKILL_POLICY, { includeAgentFallback: false });
+    const builtInTools = allowedTools.filter((toolName) => !toolName.startsWith('mcp__'));
 
     return {
         pathToClaudeCodeExecutable: process.env.CLAUDE_PATH ?? 'claude',
         env: process.env,
         cwd: registry.directories[0],
         additionalDirectories: registry.directories.slice(1),
-        agents: createSubagentDefinitions(registry, mcpServers),
+        agent: parent.id,
+        agents: {
+            [parent.id]: {
+                description: parent.description ?? 'Telegram-facing parent assistant',
+                model: parent.model,
+                prompt: parent.systemPrompt,
+                skills: [...activeSkills],
+            },
+        },
         allowedTools,
+        tools: builtInTools,
         allowDangerouslySkipPermissions: false,
+        disallowedTools: ['Agent'],
         includePartialMessages: true,
         mcpServers: mcpServers || undefined,
         model: parent.model,
         permissionMode: 'acceptEdits',
-        plugins: [{ type: 'local', path: pluginPath }],
-        systemPrompt: systemPrompt || undefined,
+        plugins: [
+            { type: 'local', path: pluginPath },
+            { type: 'local', path: parentSkillsPluginPath },
+        ],
+        settingSources: ['project'],
+        systemPrompt: parent.systemPrompt || undefined,
     };
-}
-
-function collectDelegatedAgents(event, delegatedAgents) {
-    const blocks = event.message?.content ?? [];
-    for (const block of blocks) {
-        if (block.type !== 'tool_use' || block.name !== 'Agent') continue;
-        const agentId = block.input?.subagent_type ?? block.input?.agent ?? block.input?.name;
-        if (agentId) delegatedAgents.add(agentId);
-    }
 }
 
 function checkClaudeExecutable(claudePath) {
@@ -129,22 +145,26 @@ function checkClaudeExecutable(claudePath) {
     });
 }
 
-function createParentAgentRunner({ registry, mcpServers, queryFn = query } = {}) {
-    const baseOptions = createParentOptions({ registry, mcpServers });
-    checkClaudeExecutable(baseOptions.pathToClaudeCodeExecutable ?? 'claude');
+function createParentAgentRunner({ registry, mcpServers, queryFn } = {}) {
+    checkClaudeExecutable(process.env.CLAUDE_PATH ?? 'claude');
+
+    let resolvedQuery = queryFn;
+    async function getQuery() {
+        if (!resolvedQuery) {
+            resolvedQuery = (await import('@anthropic-ai/claude-agent-sdk')).query;
+        }
+        return resolvedQuery;
+    }
 
     return async function runParentAgent({ prompt = '', source, jobName, chatId } = {}) {
-        const delegatedAgents = new Set();
-        const selectedSkills = selectSkills({ jobName, source, text: prompt });
-        const options = createParentOptions({ registry, mcpServers, selectedSkills });
+        const loadedSkills = availableSkills(SKILL_POLICY, { mcpServers });
+        const options = createParentOptions({ registry, mcpServers });
         const finalPrompt = buildInvocationPrompt({ chatId, jobName, prompt, source });
         let result = null;
+        const queryImpl = await getQuery();
 
-        for await (const message of queryFn({ prompt: finalPrompt, options })) {
+        for await (const message of queryImpl({ prompt: finalPrompt, options })) {
             logStreamEvent(message);
-            if (message.type === 'assistant') {
-                collectDelegatedAgents(message, delegatedAgents);
-            }
             if (message.type === 'result') {
                 if (message.subtype === 'success') {
                     result = message.result ?? '';
@@ -158,16 +178,18 @@ function createParentAgentRunner({ registry, mcpServers, queryFn = query } = {})
         }
 
         return {
-            delegatedAgents: [...delegatedAgents],
+            delegatedAgents: [],
+            loadedSkills,
             output: result ?? '',
-            selectedSkills,
+            selectedSkills: loadedSkills,
         };
     };
 }
 
 module.exports = {
+    PARENT_SKILLS,
+    SKILL_POLICY,
     buildInvocationPrompt,
     createParentAgentRunner,
     createParentOptions,
-    createSubagentDefinitions,
 };
