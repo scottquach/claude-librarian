@@ -1,8 +1,8 @@
-const { parseFrontmatter } = require('./bot-config-loader');
-const nodeCron = require('node-cron');
-const { readFileSync, readdirSync } = require('node:fs');
-const { join } = require('node:path');
-const { markdownToTelegramHtml } = require('./telegram-format');
+import nodeCron from 'node-cron';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { parseFrontmatter } from './bot-config-loader.js';
+import { markdownToTelegramHtml } from './telegram-format.js';
 
 function parseJobConfig(fileContent) {
     const { frontmatter, body } = parseFrontmatter(fileContent);
@@ -94,4 +94,4 @@ function scheduleJobs(bot, jobsDir, opts = {}) {
     }
 }
 
-module.exports = { parseJobConfig, loadJobConfigs, scheduleJobs };
+export { parseJobConfig, loadJobConfigs, scheduleJobs };

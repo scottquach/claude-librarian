@@ -1,7 +1,6 @@
-// src/bot-config-loader.js
-const { readFileSync, readdirSync: fsReaddirSync } = require('node:fs');
-const { dirname, join, posix } = require('node:path');
-const { parse: parseYaml } = require('yaml');
+import { readFileSync, readdirSync as fsReaddirSync } from 'node:fs';
+import { dirname, join, posix } from 'node:path';
+import { parse as parseYaml } from 'yaml';
 
 function parseFrontmatter(content) {
   if (!content.startsWith('---\n') && !content.startsWith('---\r\n')) {
@@ -69,4 +68,4 @@ function loadBotConfig(botMdPath, promptsDir, opts = {}) {
   };
 }
 
-module.exports = { parseFrontmatter, loadBotConfig };
+export { parseFrontmatter, loadBotConfig };

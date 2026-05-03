@@ -1,5 +1,5 @@
-const { createSdkMcpServer, tool } = require('@anthropic-ai/claude-agent-sdk');
-const { z } = require('zod');
+import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
+import { z } from 'zod';
 
 function createSchedulerServer(dynamicScheduler) {
     return createSdkMcpServer({
@@ -117,4 +117,4 @@ function createSchedulerServer(dynamicScheduler) {
     });
 }
 
-module.exports = { createSchedulerServer };
+export { createSchedulerServer };

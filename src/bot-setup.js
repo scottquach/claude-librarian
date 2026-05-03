@@ -1,6 +1,5 @@
-// src/bot-setup.js
-const { message } = require('telegraf/filters');
-const { markdownToTelegramHtml } = require('./telegram-format');
+import { message } from 'telegraf/filters';
+import { markdownToTelegramHtml } from './telegram-format.js';
 
 async function handleMessage(ctx, text, { runParentAgent, conversationStore }) {
     const chatId = String(ctx.chat?.id ?? 'global');
@@ -60,4 +59,4 @@ function setupBot(telegramBot, { runParentAgent, conversationStore, transcribeVo
     telegramBot.help((ctx) => ctx.reply("Send me a message and I'll log it to your journal."));
 }
 
-module.exports = { setupBot };
+export { setupBot };

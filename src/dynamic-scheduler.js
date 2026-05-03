@@ -1,7 +1,7 @@
-const nodeCron = require('node-cron');
-const { mkdirSync, readFileSync, renameSync, writeFileSync } = require('node:fs');
-const { dirname } = require('node:path');
-const { markdownToTelegramHtml } = require('./telegram-format');
+import nodeCron from 'node-cron';
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+import { markdownToTelegramHtml } from './telegram-format.js';
 
 function slugify(str) {
     return String(str)
@@ -201,4 +201,4 @@ function createDynamicScheduler(deps) {
     return { scheduleTask, scheduleMessage, cancelSchedule, listSchedules, reloadFromDisk };
 }
 
-module.exports = { createDynamicScheduler, slugify, parseSchedule };
+export { createDynamicScheduler, slugify, parseSchedule };

@@ -1,15 +1,18 @@
-require('dotenv').config();
-const { Telegraf } = require('telegraf');
-const { join } = require('node:path');
-const { loadAgentRegistry } = require('./src/agent-registry');
-const { createParentAgentRunner } = require('./src/parent-agent');
-const { createConversationStateStore } = require('./src/conversation-state');
-const { setupBot } = require('./src/bot-setup');
-const { scheduleJobs } = require('./src/job-scheduler');
-const { createTranscriber } = require('./src/transcribe');
-const { createCalendarServer } = require('./src/mcp/calendar');
-const { createDynamicScheduler } = require('./src/dynamic-scheduler');
-const { createSchedulerServer } = require('./src/mcp/scheduler');
+import 'dotenv/config';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { Telegraf } from 'telegraf';
+import { loadAgentRegistry } from './src/agent-registry.js';
+import { createParentAgentRunner } from './src/parent-agent.js';
+import { createConversationStateStore } from './src/conversation-state.js';
+import { setupBot } from './src/bot-setup.js';
+import { scheduleJobs } from './src/job-scheduler.js';
+import { createTranscriber } from './src/transcribe.js';
+import { createCalendarServer } from './src/mcp/calendar.js';
+import { createDynamicScheduler } from './src/dynamic-scheduler.js';
+import { createSchedulerServer } from './src/mcp/scheduler.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const registry = loadAgentRegistry(join(__dirname, 'agents', 'registry.json'));

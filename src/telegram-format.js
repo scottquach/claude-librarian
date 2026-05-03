@@ -38,4 +38,4 @@ function markdownToTelegramHtml(text) {
   return result;
 }
 
-module.exports = { markdownToTelegramHtml };
+export { markdownToTelegramHtml };

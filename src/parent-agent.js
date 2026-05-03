@@ -1,8 +1,11 @@
-const { execFile } = require('node:child_process');
-const { readFileSync, readdirSync } = require('node:fs');
-const { resolve } = require('node:path');
-const { availableSkills, parseToolsFromFrontmatter, toolsForSkills } = require('./tool-policy');
+import { execFile } from 'node:child_process';
+import { readFileSync, readdirSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { query } from '@anthropic-ai/claude-agent-sdk';
+import { availableSkills, parseToolsFromFrontmatter, toolsForSkills } from './tool-policy.js';
 
+const __dirname = dirname(fileURLToPath(import.meta.url));
 const pluginPath = resolve(__dirname, '../plugins/caveman');
 const parentSkillsPluginPath = resolve(__dirname, '../plugins/parent-skills');
 
@@ -145,23 +148,23 @@ function checkClaudeExecutable(claudePath) {
     });
 }
 
-function createParentAgentRunner({ registry, mcpServers, queryFn } = {}) {
-    checkClaudeExecutable(process.env.CLAUDE_PATH ?? 'claude');
+let claudePreflightPromise = null;
 
-    let resolvedQuery = queryFn;
-    async function getQuery() {
-        if (!resolvedQuery) {
-            resolvedQuery = (await import('@anthropic-ai/claude-agent-sdk')).query;
-        }
-        return resolvedQuery;
-    }
+function ensureClaudeExecutableCheck(claudePath) {
+    claudePreflightPromise ??= checkClaudeExecutable(claudePath);
+    return claudePreflightPromise;
+}
+
+function createParentAgentRunner({ registry, mcpServers, queryFn } = {}) {
+    const claudePath = process.env.CLAUDE_PATH ?? 'claude';
+    const queryImpl = queryFn ?? query;
 
     return async function runParentAgent({ prompt = '', source, jobName, chatId } = {}) {
+        await ensureClaudeExecutableCheck(claudePath);
         const loadedSkills = availableSkills(SKILL_POLICY, { mcpServers });
         const options = createParentOptions({ registry, mcpServers });
         const finalPrompt = buildInvocationPrompt({ chatId, jobName, prompt, source });
         let result = null;
-        const queryImpl = await getQuery();
 
         for await (const message of queryImpl({ prompt: finalPrompt, options })) {
             logStreamEvent(message);
@@ -186,7 +189,7 @@ function createParentAgentRunner({ registry, mcpServers, queryFn } = {}) {
     };
 }
 
-module.exports = {
+export {
     PARENT_SKILLS,
     SKILL_POLICY,
     buildInvocationPrompt,

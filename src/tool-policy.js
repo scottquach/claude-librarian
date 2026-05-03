@@ -1,19 +1,16 @@
-/**
- * Parse the `tools:` list from a SKILL.md frontmatter block.
- * Returns an empty array when the field is absent or the frontmatter is missing.
- */
+import { parse as parseYaml } from 'yaml';
+
 function parseToolsFromFrontmatter(content) {
-    const fmMatch = content.match(/^---\n([\s\S]*?)\n---\n/);
+    const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
     if (!fmMatch) return [];
 
-    const toolsBlock = fmMatch[1].match(/^tools:\n((?:[ \t]+-[ \t]+.+\n?)*)/m);
-    if (!toolsBlock) return [];
+    const frontmatter = parseYaml(fmMatch[1]);
+    if (!frontmatter || typeof frontmatter !== 'object' || !('tools' in frontmatter)) return [];
+    if (!Array.isArray(frontmatter.tools)) {
+        throw new Error('SKILL.md frontmatter field "tools" must be a YAML list');
+    }
 
-    return (
-        toolsBlock[1]
-            .match(/^[ \t]+-[ \t]+(.+)$/gm)
-            ?.map((line) => line.replace(/^[ \t]+-[ \t]+/, '').trim()) ?? []
-    );
+    return frontmatter.tools.map((tool) => String(tool).trim()).filter(Boolean);
 }
 
 function unique(values) {
@@ -71,7 +68,7 @@ function toolsForSkills(skills = [], toolsBySkill = {}, { includeAgentFallback =
     ]);
 }
 
-module.exports = {
+export {
     availableSkills,
     parseToolsFromFrontmatter,
     toolsForSkills,

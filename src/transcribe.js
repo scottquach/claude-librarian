@@ -1,5 +1,4 @@
-// src/transcribe.js
-const { OpenAI, toFile } = require('openai');
+import { OpenAI, toFile } from 'openai';
 
 function createTranscriber({ apiKey } = {}) {
   let openai;
@@ -27,4 +26,4 @@ function createTranscriber({ apiKey } = {}) {
   };
 }
 
-module.exports = { createTranscriber };
+export { createTranscriber };

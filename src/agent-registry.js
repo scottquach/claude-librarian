@@ -1,7 +1,6 @@
-const { readFileSync, readdirSync: fsReaddirSync } = require('node:fs');
-const { dirname, isAbsolute, join, posix, resolve } = require('node:path');
-
-const { loadBotConfig } = require('./bot-config-loader');
+import { readFileSync, readdirSync as fsReaddirSync } from 'node:fs';
+import { dirname, isAbsolute, join, posix, resolve } from 'node:path';
+import { loadBotConfig } from './bot-config-loader.js';
 
 function resolvePath(baseDir, targetPath) {
     if (!targetPath) return null;
@@ -77,6 +76,4 @@ function loadAgentRegistry(registryPath, opts = {}) {
     };
 }
 
-module.exports = {
-    loadAgentRegistry,
-};
+export { loadAgentRegistry };

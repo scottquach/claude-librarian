@@ -1,4 +1,3 @@
-// src/date-context.js
 const TIMEZONE = process.env.BOT_TIMEZONE ?? 'America/Chicago';
 
 function localDate(d, tz) {
@@ -44,4 +43,4 @@ function injectContext(prompt, extras = {}) {
   return `${buildContextString(extras)}\n\n${prompt}`;
 }
 
-module.exports = { localDate, computeDateContext, buildContextString, injectContext };
+export { localDate, computeDateContext, buildContextString, injectContext };

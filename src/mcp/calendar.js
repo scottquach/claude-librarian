@@ -1,8 +1,8 @@
-const ical = require('node-ical');
-const { createSdkMcpServer, tool } = require('@anthropic-ai/claude-agent-sdk');
-const { TZDate } = require('@date-fns/tz');
-const { addDays, endOfDay, startOfDay } = require('date-fns');
-const { z } = require('zod');
+import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
+import { TZDate } from '@date-fns/tz';
+import { addDays, endOfDay, startOfDay } from 'date-fns';
+import ical from 'node-ical';
+import { z } from 'zod';
 
 function getCalendarTimezone() {
     return process.env.BOT_TIMEZONE ?? 'America/Chicago';
@@ -193,8 +193,6 @@ function createCalendarServer(urls, labels) {
                         text = 'No events found in the requested date range.';
                     }
 
-                    console.log('text', text);
-
                     return { content: [{ type: 'text', text }] };
                 },
             ),
@@ -202,10 +200,9 @@ function createCalendarServer(urls, labels) {
     });
 }
 
-module.exports = {
+export {
     createCalendarServer,
     fetchCalendarEvents,
-    // Exported for testing
     fetchIcal,
     extractEvents,
     normalizeEvent,

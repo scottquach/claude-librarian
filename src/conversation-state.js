@@ -1,11 +1,17 @@
-const { mkdirSync, readFileSync, renameSync, writeFileSync } = require('node:fs');
-const { dirname, join } = require('node:path');
-const { buildContextString, computeDateContext } = require('./date-context');
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { buildContextString, computeDateContext } from './date-context.js';
 
 const CONVERSATION_STATE_VERSION = 1;
 const DEFAULT_MAX_MESSAGES = 40;
 const DEFAULT_CONTEXT_WINDOW = 8;
-const DEFAULT_CONVERSATION_DIRECTORY_PATH = join(__dirname, '..', 'conversations', 'chats');
+const DEFAULT_CONVERSATION_DIRECTORY_PATH = join(
+    dirname(fileURLToPath(import.meta.url)),
+    '..',
+    'conversations',
+    'chats',
+);
 
 function toSafeFileName(chatId) {
     return encodeURIComponent(String(chatId));
@@ -170,7 +176,7 @@ function createConversationStateStore({
     };
 }
 
-module.exports = {
+export {
     CONVERSATION_STATE_VERSION,
     DEFAULT_CONTEXT_WINDOW,
     DEFAULT_MAX_MESSAGES,
