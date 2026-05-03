@@ -29,7 +29,7 @@ function computeDateContext() {
  */
 function buildContextString(extras = {}) {
   const { today, currentTime, weekStartStr, weekNum } = computeDateContext();
-  let context = `today is ${today}, current time is ${currentTime}, current week starts ${weekStartStr}, week number ${weekNum}`;
+  let context = `today is ${today}, current time is ${currentTime}, timezone is ${TIMEZONE}, current week starts ${weekStartStr}, week number ${weekNum}`;
   for (const [key, value] of Object.entries(extras)) {
     context += `, ${key}="${value}"`;
   }

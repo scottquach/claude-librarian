@@ -18,7 +18,7 @@ function generateId(label, existingIds) {
     return `${base}-${counter}`;
 }
 
-function parseSchedule(schedule) {
+function parseSchedule(schedule, timezone) {
     if (nodeCron.validate(schedule)) {
         return { cronExpr: schedule, isOneShot: false };
     }
@@ -27,10 +27,25 @@ function parseSchedule(schedule) {
         if (dt <= new Date()) {
             throw new Error(`Scheduled datetime is in the past: ${schedule}`);
         }
-        const m = dt.getMinutes();
-        const h = dt.getHours();
-        const d = dt.getDate();
-        const mo = dt.getMonth() + 1;
+        // Extract components in deps.timezone so the cron expression aligns with
+        // the timezone node-cron uses. getHours() etc. would use server local time
+        // and produce the wrong cron fields when server TZ != deps.timezone.
+        const parts = Object.fromEntries(
+            new Intl.DateTimeFormat('en', {
+                timeZone: timezone,
+                minute: 'numeric',
+                hour: 'numeric',
+                day: 'numeric',
+                month: 'numeric',
+                hourCycle: 'h23',
+            })
+                .formatToParts(dt)
+                .map(({ type, value }) => [type, value]),
+        );
+        const m = parseInt(parts.minute, 10);
+        const h = parseInt(parts.hour, 10);
+        const d = parseInt(parts.day, 10);
+        const mo = parseInt(parts.month, 10);
         return { cronExpr: `${m} ${h} ${d} ${mo} *`, isOneShot: true };
     }
     throw new Error(`Invalid schedule: must be a cron expression or ISO 8601 datetime, got: "${schedule}"`);
@@ -103,7 +118,7 @@ function createDynamicScheduler(deps) {
     }
 
     function _createRecord(input, mode) {
-        const { cronExpr, isOneShot } = parseSchedule(input.schedule);
+        const { cronExpr, isOneShot } = parseSchedule(input.schedule, deps.timezone);
         const existingIds = new Set(tasks.keys());
         const id = generateId(input.label ?? (mode === 'llm' ? 'task' : 'message'), existingIds);
         return {
@@ -164,13 +179,10 @@ function createDynamicScheduler(deps) {
         const now = new Date();
         const active = records.filter((r) => {
             if (r.isOneShot) {
-                // Reconstruct target datetime from the cron expression fields
-                const match = r.cronExpr.match(/^(\d+) (\d+) (\d+) (\d+) \*$/);
-                if (!match) return false;
-                const [, min, hour, day, month] = match.map(Number);
-                const year = now.getFullYear();
-                const target = new Date(year, month - 1, day, hour, min, 0);
-                if (target <= now) return false;
+                // Use the original ISO string — reconstructing from cron fields
+                // would interpret them in server local time, not deps.timezone.
+                const target = new Date(r.schedule);
+                if (isNaN(target.getTime()) || target <= now) return false;
             }
             return true;
         });
