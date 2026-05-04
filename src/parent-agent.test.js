@@ -17,7 +17,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function makeRegistry() {
     return {
-        parentAgentId: 'parent',
         directories: ['/vault', '/shared'],
         parent: {
             id: 'parent',
@@ -25,22 +24,6 @@ function makeRegistry() {
             tools: [],
             systemPrompt: 'Parent instructions.',
         },
-        childAgents: [
-            {
-                id: 'journal-ingest',
-                description: 'Journal specialist',
-                model: 'haiku',
-                tools: ['Read', 'Edit'],
-                systemPrompt: 'Journal prompt.',
-            },
-            {
-                id: 'calendar-integration',
-                description: 'Calendar specialist',
-                model: 'haiku',
-                tools: ['mcp__calendar__get_calendar_events'],
-                systemPrompt: 'Calendar prompt.',
-            },
-        ],
     };
 }
 
@@ -85,8 +68,6 @@ test('createParentOptions uses native parent skills and disables subagent delega
     assert.equal(options.agents.parent.prompt, 'Parent instructions.');
     assert.equal(options.agents.parent.tools, undefined);
     assert.equal(options.agents.parent.mcpServers, undefined);
-    assert.equal(options.agents['journal-ingest'], undefined);
-    assert.equal(options.agents['calendar-integration'], undefined);
     assert.deepEqual(options.tools, ['Skill', 'Read', 'Write', 'Edit']);
     assert.deepEqual(
         options.plugins.map((plugin) => plugin.path),
@@ -133,12 +114,7 @@ test('createParentAgentRunner sends prompt through native-skilled parent without
         calls[0].options.agents.parent.skills,
         availableSkills(SKILL_POLICY, { mcpServers: { calendar: { type: 'stdio' } } }),
     );
-    assert.deepEqual(result.delegatedAgents, []);
     assert.deepEqual(result.loadedSkills, availableSkills(SKILL_POLICY, { mcpServers: { calendar: { type: 'stdio' } } }));
-    assert.deepEqual(
-        result.selectedSkills,
-        availableSkills(SKILL_POLICY, { mcpServers: { calendar: { type: 'stdio' } } }),
-    );
     assert.equal(result.output, 'Tomorrow looks busy.');
 });
 

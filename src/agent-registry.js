@@ -25,54 +25,36 @@ function loadAgentRegistry(registryPath, opts = {}) {
         throw new Error('Agent registry must be a JSON object');
     }
 
-    if (typeof registry.parentAgentId !== 'string' || registry.parentAgentId.length === 0) {
-        throw new Error('Agent registry missing required field: parentAgentId');
+    if (!registry.parent || typeof registry.parent !== 'object') {
+        throw new Error('Agent registry missing required field: parent');
     }
 
-    if (!Array.isArray(registry.agents) || registry.agents.length === 0) {
-        throw new Error('Agent registry missing required field: agents');
+    const parentSpec = registry.parent;
+    if (typeof parentSpec.id !== 'string' || parentSpec.id.length === 0) {
+        throw new Error('Agent registry parent missing required field: id');
     }
 
-    const agents = registry.agents.map((agent) => {
-        if (!agent || typeof agent !== 'object') {
-            throw new Error('Agent registry entries must be objects');
-        }
-
-        if (typeof agent.id !== 'string' || agent.id.length === 0) {
-            throw new Error('Agent registry entry missing required field: id');
-        }
-
-        if (typeof agent.botConfigPath !== 'string' || agent.botConfigPath.length === 0) {
-            throw new Error(`Agent registry entry "${agent.id}" missing required field: botConfigPath`);
-        }
-
-        const botConfigPath = resolvePath(registryDir, agent.botConfigPath);
-        const promptsDir = resolvePath(
-            registryDir,
-            agent.promptsDir ?? join(dirname(agent.botConfigPath), 'prompts'),
-        );
-        const config = loadBotConfig(botConfigPath, promptsDir, { env, readFile, readdirSync });
-
-        return {
-            ...config,
-            id: agent.id,
-            description: typeof agent.description === 'string' ? agent.description : config.description,
-            botConfigPath,
-            promptsDir,
-        };
-    });
-
-    const parent = agents.find((agent) => agent.id === registry.parentAgentId);
-    if (!parent) {
-        throw new Error(`Parent agent "${registry.parentAgentId}" was not found in the registry`);
+    if (typeof parentSpec.botConfigPath !== 'string' || parentSpec.botConfigPath.length === 0) {
+        throw new Error(`Agent registry parent "${parentSpec.id}" missing required field: botConfigPath`);
     }
+
+    const botConfigPath = resolvePath(registryDir, parentSpec.botConfigPath);
+    const promptsDir = resolvePath(
+        registryDir,
+        parentSpec.promptsDir ?? join(dirname(parentSpec.botConfigPath), 'prompts'),
+    );
+    const config = loadBotConfig(botConfigPath, promptsDir, { env, readFile, readdirSync });
+    const parent = {
+        ...config,
+        id: parentSpec.id,
+        description: typeof parentSpec.description === 'string' ? parentSpec.description : config.description,
+        botConfigPath,
+        promptsDir,
+    };
 
     return {
-        agents,
-        childAgents: agents.filter((agent) => agent.id !== registry.parentAgentId),
-        directories: uniqueStrings(agents.flatMap((agent) => agent.directories)),
+        directories: uniqueStrings(parent.directories),
         parent,
-        parentAgentId: registry.parentAgentId,
     };
 }
 

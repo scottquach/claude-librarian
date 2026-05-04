@@ -56,14 +56,13 @@ function availableSkills(toolsBySkill = {}, { mcpServers = {} } = {}) {
  *
  * @param {string[]} skills - Skill names to include.
  * @param {Record<string, string[]>} toolsBySkill - Map of skill name → tool grants.
- * @param {{ includeAgentFallback?: boolean, baseTools?: string[] }} options
+ * @param {{ baseTools?: string[] }} options
  */
-function toolsForSkills(skills = [], toolsBySkill = {}, { includeAgentFallback = true, baseTools = [] } = {}) {
+function toolsForSkills(skills = [], toolsBySkill = {}, { baseTools = [] } = {}) {
     const skillTools = skills.flatMap((skill) => toolsBySkill[skill] ?? []);
     return unique([
         ...baseTools,
         'Skill',
-        ...(includeAgentFallback ? ['Agent'] : []),
         ...skillTools,
     ]);
 }

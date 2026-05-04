@@ -8,15 +8,15 @@ const MOCK_TOOLS_BY_SKILL = {
     calendar: ['mcp__calendar__*'],
 };
 
-test('toolsForSkills scopes tools to selected skills plus Agent fallback', () => {
-    assert.deepEqual(toolsForSkills(['journal'], MOCK_TOOLS_BY_SKILL), ['Skill', 'Agent', 'Read', 'Write', 'Edit']);
-    assert.deepEqual(toolsForSkills(['calendar'], MOCK_TOOLS_BY_SKILL), ['Skill', 'Agent', 'mcp__calendar__*']);
+test('toolsForSkills scopes tools to selected skills', () => {
+    assert.deepEqual(toolsForSkills(['journal'], MOCK_TOOLS_BY_SKILL), ['Skill', 'Read', 'Write', 'Edit']);
+    assert.deepEqual(toolsForSkills(['calendar'], MOCK_TOOLS_BY_SKILL), ['Skill', 'mcp__calendar__*']);
 });
 
 test('toolsForSkills de-duplicates overlapping tools', () => {
     assert.deepEqual(
         toolsForSkills(['journal', 'task-review'], MOCK_TOOLS_BY_SKILL),
-        ['Skill', 'Agent', 'Read', 'Write', 'Edit'],
+        ['Skill', 'Read', 'Write', 'Edit'],
     );
 });
 

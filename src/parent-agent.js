@@ -100,7 +100,7 @@ function buildInvocationPrompt({ prompt = '', source = 'unknown', jobName, chatI
 function createParentOptions({ registry, mcpServers } = {}) {
     const parent = registry.parent;
     const activeSkills = availableSkills(SKILL_POLICY, { mcpServers });
-    const allowedTools = toolsForSkills(activeSkills, SKILL_POLICY, { includeAgentFallback: false });
+    const allowedTools = toolsForSkills(activeSkills, SKILL_POLICY);
     const builtInTools = allowedTools.filter((toolName) => !toolName.startsWith('mcp__'));
 
     return {
@@ -220,10 +220,8 @@ function createParentAgentRunner({ registry, mcpServers, queryFn } = {}) {
         );
 
         return {
-            delegatedAgents: [],
             loadedSkills,
             output: result ?? '',
-            selectedSkills: loadedSkills,
         };
     };
 }

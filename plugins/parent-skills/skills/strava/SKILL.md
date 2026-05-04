@@ -30,4 +30,4 @@ Read `weekly_note` and `day_header` from the `[Context: ...]` line to construct 
 
 - Do not fabricate stats. If Strava data is unavailable or the MCP tool returns an error, report that clearly.
 - If Strava access is unavailable, respond briefly that Strava is not configured.
-- For workout logging requests, fetch the activity facts first, then use the journal skill to write the final entry if that skill is also loaded. If the journal skill is not loaded, delegate the final write through the subagent fallback.
+- For workout logging requests, fetch the activity facts first, then use the journal skill to write the final entry.
