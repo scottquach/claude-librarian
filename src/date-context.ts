@@ -37,12 +37,4 @@ function buildContextString(extras: ContextExtras = {}): string {
   return `[Context: ${context}]`;
 }
 
-/**
- * Prepend a context header to a prompt string.
- * Equivalent to `buildContextString(extras) + '\n\n' + prompt`.
- */
-function injectContext(prompt: string, extras: ContextExtras = {}): string {
-  return `${buildContextString(extras)}\n\n${prompt}`;
-}
-
-export { type ContextExtras, localDate, computeDateContext, buildContextString, injectContext };
+export { type ContextExtras, localDate, computeDateContext, buildContextString };

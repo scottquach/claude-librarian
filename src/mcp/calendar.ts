@@ -230,8 +230,6 @@ function createCalendarServer(urls: string[], labels: string[]) {
 export {
     createCalendarServer,
     fetchCalendarEvents,
-    fetchIcal,
     extractEvents,
-    normalizeEvent,
 };
 export type { CalendarEvent, CalendarFetchOptions, CalendarFetchResult, ParsedCalendar };

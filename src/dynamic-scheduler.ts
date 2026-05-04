@@ -261,7 +261,7 @@ function createDynamicScheduler(deps: DynamicSchedulerDeps): DynamicScheduler {
     return { scheduleTask, scheduleMessage, cancelSchedule, listSchedules, reloadFromDisk };
 }
 
-export { createDynamicScheduler, slugify, parseSchedule };
+export { createDynamicScheduler };
 export type {
     DynamicMessageInput,
     DynamicScheduleInput,

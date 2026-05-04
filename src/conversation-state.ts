@@ -52,17 +52,10 @@ type BuildPromptInput = {
     contextWindow?: number;
 };
 
-type ReplaceWithCompactionInput = {
-    chatId: string | number;
-    messages?: unknown[];
-    summary?: string;
-};
-
 type ConversationStateStore = {
     appendTurn: (input: AppendTurnInput) => ConversationState;
     buildPrompt: (input: BuildPromptInput) => string;
     load: (chatId: string | number) => ConversationState;
-    replaceWithCompaction: (input: ReplaceWithCompactionInput) => ConversationState;
     save: (state: ConversationState) => ConversationState;
     trimMessages: (messages: ConversationMessage[], maxMessages?: number) => ConversationMessage[];
 };
@@ -229,25 +222,10 @@ function createConversationStateStore({
         return `${dateContext}\n\n${contextBlock}\n\nCurrent input:\n${currentInput}`;
     }
 
-    function replaceWithCompaction({
-        chatId,
-        messages = [],
-        summary = '',
-    }: ReplaceWithCompactionInput): ConversationState {
-        const state = load(chatId);
-        state.summary = summary;
-        state.messages = trimMessages(
-            messages.map(normalizeMessage).filter((message): message is ConversationMessage => Boolean(message)),
-            maxMessages,
-        );
-        return save(state);
-    }
-
     return {
         appendTurn,
         buildPrompt,
         load,
-        replaceWithCompaction,
         save,
         trimMessages,
     };

@@ -134,5 +134,5 @@ function setupBot(telegramBot: TelegramBotLike, { runParentAgent, conversationSt
     telegramBot.help((ctx) => ctx.reply("Send me a message and I'll log it to your journal."));
 }
 
-export { describeUpdate, handleMessage, isHandlerTimeoutError, setupBot };
+export { isHandlerTimeoutError, setupBot };
 export type { BotContext, BotSetupDeps, TelegramBotLike };

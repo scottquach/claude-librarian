@@ -86,12 +86,24 @@ test('conversation store trims old messages after append', async () => {
 
 test('conversation store buildPrompt includes summary and recent messages', async () => {
   await withTempStorage(async ({ conversationStore }) => {
-    conversationStore.replaceWithCompaction({
+    conversationStore.save({
       chatId: 'prompt',
       summary: 'User is working on weekly planning.',
+      updatedAt: new Date().toISOString(),
+      version: 1,
       messages: [
-        { role: 'user', content: 'Move tasks to this week.', source: 'telegram' },
-        { role: 'assistant', content: 'Done, tasks moved.', source: 'telegram' },
+        {
+          role: 'user',
+          content: 'Move tasks to this week.',
+          source: 'telegram',
+          createdAt: new Date().toISOString(),
+        },
+        {
+          role: 'assistant',
+          content: 'Done, tasks moved.',
+          source: 'telegram',
+          createdAt: new Date().toISOString(),
+        },
       ],
     });
 

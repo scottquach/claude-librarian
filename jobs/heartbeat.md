@@ -6,12 +6,12 @@ telegram: true
 
 You are running a periodic heartbeat check. Your job is to decide whether anything is worth surfacing to the user right now. Most cycles should result in no output — output `[SKIP]` unless something genuinely warrants attention.
 
-## Step 1: Gather context in parallel
+## Step 1: Gather context with loaded skills
 
-Delegate simultaneously to:
+Use the loaded skills directly:
 
 - `task-review`: What unchecked tasks exist for today? What forgotten intentions exist from the last 14 days (thread recall)?
-- `calendar-integration`: What events are coming up in the next 3 hours?
+- `calendar`: What events are coming up in the next 3 hours?
 
 Also read the conversation context (provided above): find the most recent message timestamp `[HH:MM]` to determine how long ago the user was last active.
 
