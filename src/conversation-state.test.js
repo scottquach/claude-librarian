@@ -1,12 +1,13 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { createConversationStateStore, createDefaultState } = require('./conversation-state');
+import assert from 'node:assert/strict';
+import { tmpdir } from 'node:os';
+import test from 'node:test';
+import { createConversationStateStore, createDefaultState } from './conversation-state.js';
 
 test('formatRecentMessages via buildPrompt includes HH:MM timestamps in formatted messages', () => {
     process.env.BOT_TIMEZONE = 'America/Chicago';
 
     const store = createConversationStateStore({
-        conversationDirectoryPath: require('node:os').tmpdir(),
+        conversationDirectoryPath: tmpdir(),
     });
 
     const createdAt = '2026-05-01T14:30:00.000Z';

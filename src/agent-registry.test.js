@@ -1,7 +1,6 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-
-const { loadAgentRegistry } = require('./agent-registry');
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { loadAgentRegistry } from './agent-registry.js';
 
 test('loadAgentRegistry hydrates parent and child agent configs', () => {
     const files = {

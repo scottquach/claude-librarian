@@ -1,8 +1,11 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { readFileSync } = require('node:fs');
-const { join } = require('node:path');
-const { parseJobConfig } = require('./job-scheduler');
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, basename, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import test from 'node:test';
+import { loadJobConfigs, parseJobConfig, scheduleJobs } from './job-scheduler.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const SAMPLE_JOB_MD = `---
 name: daily-summary
@@ -53,8 +56,6 @@ test('weekly reflection is scheduled for Sunday morning', () => {
   assert.equal(job.cron, '0 8 * * 0');
 });
 
-const { loadJobConfigs } = require('./job-scheduler');
-
 test('loadJobConfigs returns a parsed job config for each .md file in the directory', () => {
   const files = {
     'daily-summary.md': `---\nname: daily-summary\ncron: "0 9 * * *"\ntelegram: true\n---\n\nSummarize journal.\n`,
@@ -62,7 +63,7 @@ test('loadJobConfigs returns a parsed job config for each .md file in the direct
   };
 
   const fakeReaddir = () => Object.keys(files);
-  const fakeReadFile = (p) => files[require('node:path').basename(p)];
+  const fakeReadFile = (p) => files[basename(p)];
 
   const jobs = loadJobConfigs('/fake/jobs', {
     readdir: fakeReaddir,
@@ -91,8 +92,6 @@ test('loadJobConfigs returns empty array when directory has no .md files', () =>
   const jobs = loadJobConfigs('/fake/jobs', { readdir: fakeReaddir, readFile: () => '' });
   assert.deepEqual(jobs, []);
 });
-
-const { scheduleJobs } = require('./job-scheduler');
 
 function makeFakeCron() {
   const scheduled = [];
@@ -140,7 +139,7 @@ test('scheduleJobs schedules one cron job per job config', () => {
   scheduleJobs(makeFakeBot(), '/fake/jobs', {
     cron: fakeCron,
     readdir: () => Object.keys(files),
-    readFile: (p) => files[require('node:path').basename(p)],
+    readFile: (p) => files[basename(p)],
     runParentAgent: async () => ({ output: 'done' }),
   });
 
@@ -159,7 +158,7 @@ test('scheduleJobs sends output to Telegram when telegram is true', async () => 
   scheduleJobs(fakeBot, '/fake/jobs', {
     cron: fakeCron,
     readdir: () => Object.keys(files),
-    readFile: (p) => files[require('node:path').basename(p)],
+    readFile: (p) => files[basename(p)],
     runParentAgent: async () => ({ output: 'task result' }),
     defaultChatId: '42',
   });
@@ -181,7 +180,7 @@ test('scheduleJobs does not send to Telegram when telegram is false', async () =
   scheduleJobs(fakeBot, '/fake/jobs', {
     cron: fakeCron,
     readdir: () => Object.keys(files),
-    readFile: (p) => files[require('node:path').basename(p)],
+    readFile: (p) => files[basename(p)],
     runParentAgent: async () => ({ output: 'quiet result' }),
     defaultChatId: '42',
   });
@@ -201,7 +200,7 @@ test('scheduleJobs does not send to Telegram when output starts with [SKIP]', as
   scheduleJobs(fakeBot, '/fake/jobs', {
     cron: fakeCron,
     readdir: () => Object.keys(files),
-    readFile: (p) => files[require('node:path').basename(p)],
+    readFile: (p) => files[basename(p)],
     runParentAgent: async () => ({ output: '[SKIP]' }),
     defaultChatId: '42',
   });
@@ -221,7 +220,7 @@ test('scheduleJobs sends error to Telegram when job fails and telegram is true',
   scheduleJobs(fakeBot, '/fake/jobs', {
     cron: fakeCron,
     readdir: () => Object.keys(files),
-    readFile: (p) => files[require('node:path').basename(p)],
+    readFile: (p) => files[basename(p)],
     runParentAgent: async () => { throw new Error('claude exploded'); },
     defaultChatId: '42',
   });
@@ -253,7 +252,7 @@ test('scheduleJobs uses conversation store prompt context and sends jobs through
   scheduleJobs(fakeBot, '/fake/jobs', {
     cron: fakeCron,
     readdir: () => Object.keys(files),
-    readFile: (p) => files[require('node:path').basename(p)],
+    readFile: (p) => files[basename(p)],
     runParentAgent: async ({ chatId, jobName, prompt, source }) => {
       calls.push({ type: 'runParentAgent', chatId, jobName, prompt, source });
       return { output: 'job output' };
@@ -295,7 +294,7 @@ test('scheduleJobs does not append skipped output to conversation store', async 
   scheduleJobs(makeFakeBot('42'), '/fake/jobs', {
     cron: fakeCron,
     readdir: () => Object.keys(files),
-    readFile: (p) => files[require('node:path').basename(p)],
+    readFile: (p) => files[basename(p)],
     runParentAgent: async () => ({ output: '[SKIP]' }),
     defaultChatId: '42',
     conversationStore: fakeStore,

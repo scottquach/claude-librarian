@@ -1,7 +1,6 @@
-// src/bot-config-loader.test.js
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { parseFrontmatter, loadBotConfig } = require('./bot-config-loader');
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { loadBotConfig, parseFrontmatter } from './bot-config-loader.js';
 
 const SAMPLE_BOT_MD = `---
 name: journal

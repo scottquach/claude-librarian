@@ -1,10 +1,9 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { mkdtempSync, readFileSync, rmSync } = require('node:fs');
-const { join } = require('node:path');
-const { tmpdir } = require('node:os');
-
-const { createConversationStateStore } = require('./src/conversation-state');
+import assert from 'node:assert/strict';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import test from 'node:test';
+import { createConversationStateStore } from './src/conversation-state.js';
 
 function withTempStorage(runTest) {
   const tempDirectory = mkdtempSync(join(tmpdir(), 'telegram-bot-test-'));

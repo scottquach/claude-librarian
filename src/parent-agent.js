@@ -155,30 +155,69 @@ function ensureClaudeExecutableCheck(claudePath) {
     return claudePreflightPromise;
 }
 
+function summarizeStreamEvent(message) {
+    if (message.type === 'result') return `result:${message.subtype ?? 'unknown'}`;
+    if (message.type === 'system') return `system:${message.subtype ?? 'unknown'}`;
+    if (message.type === 'assistant') return `assistant:${message.message?.content?.[0]?.type ?? 'content'}`;
+    if (message.type === 'tool_result') return 'tool_result';
+    if (message.type === 'user') return `user:${message.message?.content?.[0]?.type ?? 'content'}`;
+    return message.type ?? 'unknown';
+}
+
 function createParentAgentRunner({ registry, mcpServers, queryFn } = {}) {
     const claudePath = process.env.CLAUDE_PATH ?? 'claude';
     const queryImpl = queryFn ?? query;
 
     return async function runParentAgent({ prompt = '', source, jobName, chatId } = {}) {
+        const startedAt = Date.now();
+        console.log(
+            `[claude] parent run started source=${source ?? 'unknown'} chatId=${chatId ?? 'n/a'} jobName=${jobName ?? 'n/a'}`,
+        );
+
         await ensureClaudeExecutableCheck(claudePath);
+        console.log(`[claude] preflight complete durationMs=${Date.now() - startedAt}`);
+
         const loadedSkills = availableSkills(SKILL_POLICY, { mcpServers });
         const options = createParentOptions({ registry, mcpServers });
         const finalPrompt = buildInvocationPrompt({ chatId, jobName, prompt, source });
         let result = null;
+        let firstEventLogged = false;
 
-        for await (const message of queryImpl({ prompt: finalPrompt, options })) {
-            logStreamEvent(message);
-            if (message.type === 'result') {
-                if (message.subtype === 'success') {
-                    result = message.result ?? '';
-                    continue;
+        console.log(
+            `[claude] query started source=${source ?? 'unknown'} chatId=${chatId ?? 'n/a'} jobName=${jobName ?? 'n/a'} skills=${loadedSkills.join(',') || 'none'}`,
+        );
+
+        try {
+            for await (const message of queryImpl({ prompt: finalPrompt, options })) {
+                if (!firstEventLogged) {
+                    firstEventLogged = true;
+                    console.log(
+                        `[claude] first stream event afterMs=${Date.now() - startedAt} event=${summarizeStreamEvent(message)}`,
+                    );
                 }
+                logStreamEvent(message);
+                if (message.type === 'result') {
+                    if (message.subtype === 'success') {
+                        result = message.result ?? '';
+                        continue;
+                    }
 
-                const errorMsg = message.errors?.join('; ') ?? `Claude ended with subtype: ${message.subtype}`;
-                console.error('[claude] result event failure:', JSON.stringify(message, null, 2));
-                throw new Error(errorMsg);
+                    const errorMsg = message.errors?.join('; ') ?? `Claude ended with subtype: ${message.subtype}`;
+                    console.error('[claude] result event failure:', JSON.stringify(message, null, 2));
+                    throw new Error(errorMsg);
+                }
             }
+        } catch (error) {
+            console.error(
+                `[claude] parent run failed source=${source ?? 'unknown'} chatId=${chatId ?? 'n/a'} jobName=${jobName ?? 'n/a'} durationMs=${Date.now() - startedAt} firstEventSeen=${firstEventLogged} error=${error.message}`,
+                error.stack ?? '',
+            );
+            throw error;
         }
+
+        console.log(
+            `[claude] parent run completed source=${source ?? 'unknown'} chatId=${chatId ?? 'n/a'} jobName=${jobName ?? 'n/a'} durationMs=${Date.now() - startedAt} outputLength=${(result ?? '').length}`,
+        );
 
         return {
             delegatedAgents: [],
@@ -195,4 +234,5 @@ export {
     buildInvocationPrompt,
     createParentAgentRunner,
     createParentOptions,
+    summarizeStreamEvent,
 };

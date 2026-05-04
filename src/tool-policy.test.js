@@ -1,7 +1,6 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-
-const { availableSkills, parseToolsFromFrontmatter, toolsForSkills } = require('./tool-policy');
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import { availableSkills, parseToolsFromFrontmatter, toolsForSkills } from './tool-policy.js';
 
 const MOCK_TOOLS_BY_SKILL = {
     journal: ['Read', 'Write', 'Edit'],

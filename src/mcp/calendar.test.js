@@ -1,7 +1,7 @@
-const { describe, it, beforeEach, afterEach, mock } = require('node:test');
-const assert = require('node:assert/strict');
-const { fetchCalendarEvents, extractEvents } = require('./calendar');
-const ical = require('node-ical');
+import assert from 'node:assert/strict';
+import { afterEach, beforeEach, describe, it, mock } from 'node:test';
+import ical from 'node-ical';
+import { extractEvents, fetchCalendarEvents } from './calendar.js';
 
 const originalBotTimezone = process.env.BOT_TIMEZONE;
 

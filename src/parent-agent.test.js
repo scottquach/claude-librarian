@@ -1,16 +1,19 @@
-const test = require('node:test');
-const assert = require('node:assert/strict');
-const { readFileSync } = require('node:fs');
-const { resolve } = require('node:path');
-
-const {
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+import {
     PARENT_SKILLS,
     SKILL_POLICY,
     buildInvocationPrompt,
     createParentAgentRunner,
     createParentOptions,
-} = require('./parent-agent');
-const { availableSkills } = require('./tool-policy');
+    summarizeStreamEvent,
+} from './parent-agent.js';
+import { availableSkills } from './tool-policy.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function makeRegistry() {
     return {
@@ -139,6 +142,48 @@ test('createParentAgentRunner sends prompt through native-skilled parent without
     assert.equal(result.output, 'Tomorrow looks busy.');
 });
 
+test('createParentAgentRunner logs lifecycle timing around the query stream', async () => {
+    const queryFn = async function* () {
+        yield {
+            type: 'assistant',
+            message: {
+                content: [{ type: 'text', text: 'Working...' }],
+            },
+        };
+        yield {
+            type: 'result',
+            subtype: 'success',
+            result: 'Done.',
+        };
+    };
+
+    const runParentAgent = createParentAgentRunner({
+        registry: makeRegistry(),
+        mcpServers: { calendar: { type: 'stdio' } },
+        queryFn,
+    });
+
+    const calls = [];
+    const originalConsoleLog = console.log;
+    console.log = (...args) => calls.push(args.join(' '));
+
+    try {
+        await runParentAgent({
+            chatId: '42',
+            prompt: 'Move beer walk to start at 4:30',
+            source: 'telegram',
+        });
+    } finally {
+        console.log = originalConsoleLog;
+    }
+
+    assert.ok(calls.some((line) => line.includes('[claude] parent run started source=telegram chatId=42')));
+    assert.ok(calls.some((line) => line.includes('[claude] preflight complete durationMs=')));
+    assert.ok(calls.some((line) => line.includes('[claude] query started source=telegram chatId=42')));
+    assert.ok(calls.some((line) => line.includes('[claude] first stream event afterMs=')));
+    assert.ok(calls.some((line) => line.includes('[claude] parent run completed source=telegram chatId=42')));
+});
+
 test('createParentOptions omits skills whose MCP servers are unavailable', () => {
     const options = createParentOptions({
         registry: makeRegistry(),
@@ -165,7 +210,7 @@ test('parent skill plugin exposes every native skill with matching frontmatter',
     for (const skill of PARENT_SKILLS) {
         const skillPath = resolve(skillsRoot, skill, 'SKILL.md');
         const body = readFileSync(skillPath, 'utf8');
-        const frontmatter = body.match(/^---\n([\s\S]*?)\n---\n/);
+        const frontmatter = body.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
         assert.ok(frontmatter, `${skill} should have YAML frontmatter`);
         assert.match(frontmatter[1], new RegExp(`^name: ${skill}$`, 'm'), `${skill} name should match directory`);
         assert.match(frontmatter[1], /^description: .+/m, `${skill} should have a description`);
@@ -175,6 +220,15 @@ test('parent skill plugin exposes every native skill with matching frontmatter',
             `${skill} tools list should be non-empty`,
         );
     }
+});
+
+test('summarizeStreamEvent formats common stream events for logging', () => {
+    assert.equal(summarizeStreamEvent({ type: 'system', subtype: 'init' }), 'system:init');
+    assert.equal(
+        summarizeStreamEvent({ type: 'assistant', message: { content: [{ type: 'tool_use' }] } }),
+        'assistant:tool_use',
+    );
+    assert.equal(summarizeStreamEvent({ type: 'result', subtype: 'success' }), 'result:success');
 });
 
 test('calendar skill and parent prompt allow calendar writes when tools are available', () => {
