@@ -1,7 +1,12 @@
 import { createSdkMcpServer, tool } from '@anthropic-ai/claude-agent-sdk';
 import { z } from 'zod';
+import type { DynamicScheduler } from '../dynamic-scheduler.js';
 
-function createSchedulerServer(dynamicScheduler) {
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+function createSchedulerServer(dynamicScheduler: DynamicScheduler) {
     return createSdkMcpServer({
         name: 'scheduler',
         version: '1.0.0',
@@ -37,7 +42,7 @@ function createSchedulerServer(dynamicScheduler) {
                             content: [{ type: 'text', text: JSON.stringify({ id, label: args.label ?? id, schedule: args.schedule, mode: 'llm' }) }],
                         };
                     } catch (err) {
-                        return { content: [{ type: 'text', text: `Error: ${err.message}` }], isError: true };
+                        return { content: [{ type: 'text', text: `Error: ${getErrorMessage(err)}` }], isError: true };
                     }
                 },
             ),
@@ -72,7 +77,7 @@ function createSchedulerServer(dynamicScheduler) {
                             content: [{ type: 'text', text: JSON.stringify({ id, label: args.label ?? id, schedule: args.schedule, mode: 'message' }) }],
                         };
                     } catch (err) {
-                        return { content: [{ type: 'text', text: `Error: ${err.message}` }], isError: true };
+                        return { content: [{ type: 'text', text: `Error: ${getErrorMessage(err)}` }], isError: true };
                     }
                 },
             ),

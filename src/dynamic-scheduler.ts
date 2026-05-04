@@ -1,16 +1,76 @@
 import nodeCron from 'node-cron';
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import type { CronLike, RunParentAgent, TelegramBotLike } from './job-scheduler.js';
 import { markdownToTelegramHtml } from './telegram-format.js';
 
-function slugify(str) {
+type ScheduleMode = 'llm' | 'message';
+
+type DynamicScheduleRecord = {
+    id: string;
+    mode: ScheduleMode;
+    schedule: string;
+    cronExpr: string;
+    isOneShot: boolean;
+    label: string | null;
+    prompt: string | null;
+    message: string | null;
+    chatId: string | null;
+    createdAt: string;
+};
+
+type DynamicScheduleInput = {
+    schedule: string;
+    label?: string;
+    chatId?: string;
+};
+
+type DynamicTaskInput = DynamicScheduleInput & {
+    prompt: string;
+};
+
+type DynamicMessageInput = DynamicScheduleInput & {
+    message: string;
+};
+
+type DynamicSchedulerDeps = {
+    bot: TelegramBotLike;
+    runParentAgent: RunParentAgent | null;
+    defaultChatId?: string;
+    persistPath: string;
+    timezone: string;
+    cron?: CronLike;
+};
+
+type DynamicScheduler = {
+    scheduleTask: (input: DynamicTaskInput) => string;
+    scheduleMessage: (input: DynamicMessageInput) => string;
+    cancelSchedule: (id: string) => boolean;
+    listSchedules: () => DynamicScheduleRecord[];
+    reloadFromDisk: () => void;
+};
+
+type CronTaskLike = {
+    stop: () => void;
+};
+
+type ScheduleParseResult = {
+    cronExpr: string;
+    isOneShot: boolean;
+};
+
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+function slugify(str: string): string {
     return String(str)
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '') || 'schedule';
 }
 
-function generateId(label, existingIds) {
+function generateId(label: string, existingIds: Set<string>): string {
     const base = `${slugify(label)}-${Math.floor(Date.now() / 1000)}`;
     if (!existingIds.has(base)) return base;
     let counter = 2;
@@ -18,7 +78,7 @@ function generateId(label, existingIds) {
     return `${base}-${counter}`;
 }
 
-function parseSchedule(schedule, timezone) {
+function parseSchedule(schedule: string, timezone: string): ScheduleParseResult {
     if (nodeCron.validate(schedule)) {
         return { cronExpr: schedule, isOneShot: false };
     }
@@ -42,20 +102,20 @@ function parseSchedule(schedule, timezone) {
                 .formatToParts(dt)
                 .map(({ type, value }) => [type, value]),
         );
-        const m = parseInt(parts.minute, 10);
-        const h = parseInt(parts.hour, 10);
-        const d = parseInt(parts.day, 10);
-        const mo = parseInt(parts.month, 10);
+        const m = parseInt(parts.minute ?? '0', 10);
+        const h = parseInt(parts.hour ?? '0', 10);
+        const d = parseInt(parts.day ?? '0', 10);
+        const mo = parseInt(parts.month ?? '0', 10);
         return { cronExpr: `${m} ${h} ${d} ${mo} *`, isOneShot: true };
     }
     throw new Error(`Invalid schedule: must be a cron expression or ISO 8601 datetime, got: "${schedule}"`);
 }
 
-function createDynamicScheduler(deps) {
+function createDynamicScheduler(deps: DynamicSchedulerDeps): DynamicScheduler {
     // deps.runParentAgent may be null at construction time — injected later
-    const tasks = new Map(); // id -> { record, cronTask }
+    const tasks = new Map<string, { record: DynamicScheduleRecord; cronTask: CronTaskLike }>();
 
-    function _persist() {
+    function _persist(): void {
         const records = [...tasks.values()].map((t) => t.record);
         const dir = dirname(deps.persistPath);
         mkdirSync(dir, { recursive: true });
@@ -64,14 +124,14 @@ function createDynamicScheduler(deps) {
         renameSync(tmp, deps.persistPath);
     }
 
-    function _activate(record) {
-        const cronTask = deps.cron
+    function _activate(record: DynamicScheduleRecord): void {
+        const cronTask = (deps.cron
             ? deps.cron.schedule(record.cronExpr, _makeCallback(record), { timezone: deps.timezone })
-            : nodeCron.schedule(record.cronExpr, _makeCallback(record), { timezone: deps.timezone });
+            : nodeCron.schedule(record.cronExpr, _makeCallback(record), { timezone: deps.timezone })) as CronTaskLike;
         tasks.set(record.id, { record, cronTask });
     }
 
-    function _makeCallback(record) {
+    function _makeCallback(record: DynamicScheduleRecord): () => Promise<void> {
         return async () => {
             console.log(`[scheduler] firing: ${record.id} (${record.mode})`);
             const chatId = record.chatId ?? deps.defaultChatId;
@@ -79,8 +139,8 @@ function createDynamicScheduler(deps) {
                 if (record.mode === 'message') {
                     if (chatId) {
                         await deps.bot.telegram
-                            .sendMessage(chatId, markdownToTelegramHtml(record.message), { parse_mode: 'HTML' })
-                            .catch((err) => console.error(`[scheduler] telegram send failed: ${err.message}`));
+                            .sendMessage(chatId, markdownToTelegramHtml(record.message ?? ''), { parse_mode: 'HTML' })
+                            .catch((err) => console.error(`[scheduler] telegram send failed: ${getErrorMessage(err)}`));
                     }
                 } else {
                     if (!deps.runParentAgent) {
@@ -89,22 +149,22 @@ function createDynamicScheduler(deps) {
                     const { output } = await deps.runParentAgent({
                         chatId: chatId ?? 'global',
                         jobName: record.id,
-                        prompt: record.prompt,
+                        prompt: record.prompt ?? '',
                         source: 'scheduler',
                     });
                     const shouldSkip = output.trimStart().startsWith('[SKIP]');
                     if (chatId && !shouldSkip) {
                         await deps.bot.telegram
                             .sendMessage(chatId, markdownToTelegramHtml(output), { parse_mode: 'HTML' })
-                            .catch((err) => console.error(`[scheduler] telegram send failed: ${err.message}`));
+                            .catch((err) => console.error(`[scheduler] telegram send failed: ${getErrorMessage(err)}`));
                     }
                 }
             } catch (err) {
-                console.error(`[scheduler] failed: ${record.id} — ${err.message}`);
+                console.error(`[scheduler] failed: ${record.id} — ${getErrorMessage(err)}`);
                 if (chatId) {
                     await deps.bot.telegram
-                        .sendMessage(chatId, `Scheduled task "${record.label ?? record.id}" failed: ${err.message}`)
-                        .catch((e) => console.error(`[scheduler] telegram error send failed: ${e.message}`));
+                        .sendMessage(chatId, `Scheduled task "${record.label ?? record.id}" failed: ${getErrorMessage(err)}`)
+                        .catch((e) => console.error(`[scheduler] telegram error send failed: ${getErrorMessage(e)}`));
                 }
             } finally {
                 if (record.isOneShot) {
@@ -117,7 +177,7 @@ function createDynamicScheduler(deps) {
         };
     }
 
-    function _createRecord(input, mode) {
+    function _createRecord(input: DynamicTaskInput | DynamicMessageInput, mode: ScheduleMode): DynamicScheduleRecord {
         const { cronExpr, isOneShot } = parseSchedule(input.schedule, deps.timezone);
         const existingIds = new Set(tasks.keys());
         const id = generateId(input.label ?? (mode === 'llm' ? 'task' : 'message'), existingIds);
@@ -128,14 +188,14 @@ function createDynamicScheduler(deps) {
             cronExpr,
             isOneShot,
             label: input.label ?? null,
-            prompt: mode === 'llm' ? input.prompt : null,
-            message: mode === 'message' ? input.message : null,
+            prompt: mode === 'llm' ? (input as DynamicTaskInput).prompt : null,
+            message: mode === 'message' ? (input as DynamicMessageInput).message : null,
             chatId: input.chatId ?? null,
             createdAt: new Date().toISOString(),
         };
     }
 
-    function scheduleTask(input) {
+    function scheduleTask(input: DynamicTaskInput): string {
         const record = _createRecord(input, 'llm');
         _activate(record);
         _persist();
@@ -143,7 +203,7 @@ function createDynamicScheduler(deps) {
         return record.id;
     }
 
-    function scheduleMessage(input) {
+    function scheduleMessage(input: DynamicMessageInput): string {
         const record = _createRecord(input, 'message');
         _activate(record);
         _persist();
@@ -151,7 +211,7 @@ function createDynamicScheduler(deps) {
         return record.id;
     }
 
-    function cancelSchedule(id) {
+    function cancelSchedule(id: string): boolean {
         const entry = tasks.get(id);
         if (!entry) return false;
         entry.cronTask.stop();
@@ -161,18 +221,18 @@ function createDynamicScheduler(deps) {
         return true;
     }
 
-    function listSchedules() {
+    function listSchedules(): DynamicScheduleRecord[] {
         return [...tasks.values()].map((t) => t.record);
     }
 
-    function reloadFromDisk() {
-        let records;
+    function reloadFromDisk(): void {
+        let records: DynamicScheduleRecord[];
         try {
             const raw = readFileSync(deps.persistPath, 'utf8');
-            records = JSON.parse(raw);
+            records = JSON.parse(raw) as DynamicScheduleRecord[];
         } catch (err) {
-            if (err.code === 'ENOENT') return;
-            console.error(`[scheduler] failed to read persisted schedules: ${err.message}`);
+            if (err && typeof err === 'object' && 'code' in err && err.code === 'ENOENT') return;
+            console.error(`[scheduler] failed to read persisted schedules: ${getErrorMessage(err)}`);
             return;
         }
 
@@ -202,3 +262,13 @@ function createDynamicScheduler(deps) {
 }
 
 export { createDynamicScheduler, slugify, parseSchedule };
+export type {
+    DynamicMessageInput,
+    DynamicScheduleInput,
+    DynamicScheduleRecord,
+    DynamicScheduler,
+    DynamicSchedulerDeps,
+    DynamicTaskInput,
+    ScheduleMode,
+    ScheduleParseResult,
+};

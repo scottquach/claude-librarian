@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
-import { createConversationStateStore, createDefaultState } from './conversation-state.js';
+import { createConversationStateStore, createDefaultState, type ConversationState } from './conversation-state.js';
 
 test('formatRecentMessages via buildPrompt includes HH:MM timestamps in formatted messages', () => {
     process.env.BOT_TIMEZONE = 'America/Chicago';
@@ -11,7 +11,7 @@ test('formatRecentMessages via buildPrompt includes HH:MM timestamps in formatte
     });
 
     const createdAt = '2026-05-01T14:30:00.000Z';
-    const state = {
+    const state: ConversationState = {
         ...createDefaultState('test-chat'),
         messages: [
             { role: 'user', content: 'hello', source: 'user', createdAt },

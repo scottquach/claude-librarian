@@ -2,7 +2,24 @@ import { readFileSync, readdirSync as fsReaddirSync } from 'node:fs';
 import { dirname, join, posix } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
-function parseFrontmatter(content) {
+type Frontmatter = Record<string, unknown>;
+
+type BotConfig = {
+  name: string;
+  description: string;
+  model: string;
+  tools: string[];
+  directories: string[];
+  systemPrompt: string;
+};
+
+type BotConfigLoaderOptions = {
+  readFile?: (path: string) => string;
+  readdirSync?: (path: string) => Array<string | { name: string }>;
+  env?: NodeJS.ProcessEnv;
+};
+
+function parseFrontmatter(content: string): { frontmatter: Frontmatter; body: string } {
   if (!content.startsWith('---\n') && !content.startsWith('---\r\n')) {
     throw new Error('File must start with YAML frontmatter delimited by ---');
   }
@@ -14,18 +31,19 @@ function parseFrontmatter(content) {
   const yamlBlock = withoutOpening.slice(0, closingIdx);
   const body = withoutOpening.slice(closingIdx).replace(/^\n---\r?\n/, '').trim();
 
-  return { frontmatter: parseYaml(yamlBlock), body };
+  const parsed = parseYaml(yamlBlock);
+  return { frontmatter: parsed && typeof parsed === 'object' ? parsed as Frontmatter : {}, body };
 }
 
-function expandEnvVars(str, env) {
-  return str.replace(/\$\{([^}]+)\}/g, (_, key) => (key in env ? env[key] : _));
+function expandEnvVars(str: string, env: NodeJS.ProcessEnv): string {
+  return str.replace(/\$\{([^}]+)\}/g, (match, key) => (key in env ? env[key] ?? match : match));
 }
 
-function joinPath(baseDir, ...parts) {
+function joinPath(baseDir: string, ...parts: string[]): string {
   return baseDir.startsWith('/') ? posix.join(baseDir, ...parts) : join(baseDir, ...parts);
 }
 
-function loadBotConfig(botMdPath, promptsDir, opts = {}) {
+function loadBotConfig(botMdPath: string, promptsDir: string, opts: BotConfigLoaderOptions = {}): BotConfig {
   const readFile = opts.readFile ?? ((p) => readFileSync(p, 'utf8'));
   const readdirSync = opts.readdirSync ?? ((d) => fsReaddirSync(d));
   const env = opts.env ?? process.env;
@@ -69,3 +87,4 @@ function loadBotConfig(botMdPath, promptsDir, opts = {}) {
 }
 
 export { parseFrontmatter, loadBotConfig };
+export type { BotConfig, BotConfigLoaderOptions, Frontmatter };

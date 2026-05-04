@@ -1,6 +1,8 @@
 const TIMEZONE = process.env.BOT_TIMEZONE ?? 'America/Chicago';
 
-function localDate(d, tz) {
+type ContextExtras = Record<string, string | number | boolean | null | undefined>;
+
+function localDate(d: Date, tz: string): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
 }
 
@@ -17,7 +19,7 @@ function computeDateContext() {
   const weekStartStr = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, '0')}-${String(weekStart.getDate()).padStart(2, '0')}`;
 
   const jan1 = new Date(weekStart.getFullYear(), 0, 1);
-  const weekNum = Math.ceil(((weekStart - jan1) / 86400000 + jan1.getDay() + 1) / 7);
+  const weekNum = Math.ceil(((weekStart.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
 
   return { today, currentTime, weekStartStr, weekNum, year: weekStart.getFullYear() };
 }
@@ -26,7 +28,7 @@ function computeDateContext() {
  * Build a [Context: ...] string from the current date/time plus any caller-supplied extras.
  * Extra entries are appended as  key="value"  pairs after the standard fields.
  */
-function buildContextString(extras = {}) {
+function buildContextString(extras: ContextExtras = {}): string {
   const { today, currentTime, weekStartStr, weekNum } = computeDateContext();
   let context = `today is ${today}, current time is ${currentTime}, timezone is ${TIMEZONE}, current week starts ${weekStartStr}, week number ${weekNum}`;
   for (const [key, value] of Object.entries(extras)) {
@@ -39,8 +41,8 @@ function buildContextString(extras = {}) {
  * Prepend a context header to a prompt string.
  * Equivalent to `buildContextString(extras) + '\n\n' + prompt`.
  */
-function injectContext(prompt, extras = {}) {
+function injectContext(prompt: string, extras: ContextExtras = {}): string {
   return `${buildContextString(extras)}\n\n${prompt}`;
 }
 
-export { localDate, computeDateContext, buildContextString, injectContext };
+export { type ContextExtras, localDate, computeDateContext, buildContextString, injectContext };

@@ -9,16 +9,17 @@ import { setupBot } from './src/bot-setup.js';
 import { scheduleJobs } from './src/job-scheduler.js';
 import { createTranscriber } from './src/transcribe.js';
 import { createCalendarServer } from './src/mcp/calendar.js';
-import { createDynamicScheduler } from './src/dynamic-scheduler.js';
+import { createDynamicScheduler, type DynamicSchedulerDeps } from './src/dynamic-scheduler.js';
 import { createSchedulerServer } from './src/mcp/scheduler.js';
+import type { McpServers } from './src/parent-agent.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-const bot = new Telegraf(process.env.BOT_TOKEN);
+const bot = new Telegraf(process.env.BOT_TOKEN as string);
 const registry = loadAgentRegistry(join(__dirname, 'agents', 'registry.json'));
 
 // runParentAgent is injected after the runner is created (deferred pattern)
-const schedulerDeps = {
+const schedulerDeps: DynamicSchedulerDeps = {
     bot,
     runParentAgent: null,
     defaultChatId: process.env.DEFAULT_CHAT_ID,
@@ -27,7 +28,7 @@ const schedulerDeps = {
 };
 const dynamicScheduler = createDynamicScheduler(schedulerDeps);
 
-const mcpServers = {};
+const mcpServers: McpServers = {};
 if (process.env.COMPOSIO_CONSUMER_API_KEY) {
     mcpServers.calendar = {
         type: 'http',

@@ -4,7 +4,7 @@
  * Telegram's HTML parse mode supports: <b>, <i>, <u>, <s>, <code>, <pre>, <a>.
  * This handles the most common Markdown patterns produced by Claude job outputs.
  */
-function markdownToTelegramHtml(text) {
+function markdownToTelegramHtml(text: string): string {
   // 1. Escape HTML special characters first
   let result = text
     .replace(/&/g, '&amp;')

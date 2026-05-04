@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { query } from '@anthropic-ai/claude-agent-sdk';
+import type { AgentRegistry } from './agent-registry.js';
 import { availableSkills, parseToolsFromFrontmatter, toolsForSkills } from './tool-policy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -14,13 +15,75 @@ const parentSkillsPluginPath = resolve(__dirname, '../plugins/parent-skills');
  * tool grants from SKILL.md frontmatter.  Returns a map of skill name →
  * allowed tools, sorted alphabetically so the order is deterministic.
  */
-function discoverSkillPolicy(pluginPath) {
+type McpServers = Record<string, unknown>;
+
+type ParentInvocationInput = {
+    prompt?: string;
+    source?: string;
+    jobName?: string;
+    chatId?: string;
+};
+
+type ParentInvocationResult = {
+    loadedSkills: string[];
+    output: string;
+};
+
+type ParentRunner = (input?: ParentInvocationInput) => Promise<ParentInvocationResult>;
+
+type ParentOptionsInput = {
+    registry: AgentRegistry;
+    mcpServers?: McpServers;
+};
+
+type ParentAgentOptions = {
+    pathToClaudeCodeExecutable: string;
+    env: NodeJS.ProcessEnv;
+    cwd: string;
+    additionalDirectories: string[];
+    agent: string;
+    agents: Record<string, {
+        description: string;
+        model: string;
+        prompt: string;
+        skills: string[];
+        tools?: string[];
+        mcpServers?: McpServers;
+    }>;
+    allowedTools: string[];
+    tools: string[];
+    allowDangerouslySkipPermissions: boolean;
+    disallowedTools: string[];
+    includePartialMessages: boolean;
+    mcpServers?: McpServers;
+    model: string;
+    permissionMode: string;
+    plugins: Array<{ type: 'local'; path: string }>;
+    settingSources: string[];
+    systemPrompt?: string;
+};
+
+type QueryFn = (input: { prompt: string; options: ParentAgentOptions }) => AsyncIterable<any>;
+
+type ParentRunnerFactoryInput = ParentOptionsInput & {
+    queryFn?: QueryFn;
+};
+
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+function getErrorStack(error: unknown): string {
+    return error instanceof Error ? error.stack ?? '' : '';
+}
+
+function discoverSkillPolicy(pluginPath: string): Record<string, string[]> {
     const skillsDir = resolve(pluginPath, 'skills');
     const dirs = readdirSync(skillsDir, { withFileTypes: true })
         .filter((entry) => entry.isDirectory())
         .sort((a, b) => a.name.localeCompare(b.name));
 
-    const policy = {};
+    const policy: Record<string, string[]> = {};
     for (const dir of dirs) {
         const content = readFileSync(resolve(skillsDir, dir.name, 'SKILL.md'), 'utf8');
         policy[dir.name] = parseToolsFromFrontmatter(content);
@@ -39,7 +102,7 @@ const c = {
     green: '\x1b[32m',
 };
 
-function logStreamEvent(event) {
+function logStreamEvent(event: any): void {
     const type = event.type;
 
     if (type === 'system') {
@@ -87,7 +150,7 @@ function logStreamEvent(event) {
     }
 }
 
-function buildInvocationPrompt({ prompt = '', source = 'unknown', jobName, chatId }) {
+function buildInvocationPrompt({ prompt = '', source = 'unknown', jobName, chatId }: ParentInvocationInput): string {
     const lines = ['[Invocation metadata]', `source: ${source}`];
 
     if (jobName) lines.push(`job_name: ${jobName}`);
@@ -97,7 +160,7 @@ function buildInvocationPrompt({ prompt = '', source = 'unknown', jobName, chatI
     return lines.join('\n');
 }
 
-function createParentOptions({ registry, mcpServers } = {}) {
+function createParentOptions({ registry, mcpServers }: ParentOptionsInput): ParentAgentOptions {
     const parent = registry.parent;
     const activeSkills = availableSkills(SKILL_POLICY, { mcpServers });
     const allowedTools = toolsForSkills(activeSkills, SKILL_POLICY);
@@ -134,8 +197,8 @@ function createParentOptions({ registry, mcpServers } = {}) {
     };
 }
 
-function checkClaudeExecutable(claudePath) {
-    return new Promise((resolve) => {
+function checkClaudeExecutable(claudePath: string): Promise<void> {
+    return new Promise<void>((resolve) => {
         execFile(claudePath, ['--version'], { timeout: 5000 }, (err, stdout, stderr) => {
             if (err) {
                 console.error(`[claude] preflight check failed for "${claudePath}":`, err.message);
@@ -148,14 +211,14 @@ function checkClaudeExecutable(claudePath) {
     });
 }
 
-let claudePreflightPromise = null;
+let claudePreflightPromise: Promise<void> | null = null;
 
-function ensureClaudeExecutableCheck(claudePath) {
+function ensureClaudeExecutableCheck(claudePath: string): Promise<void> {
     claudePreflightPromise ??= checkClaudeExecutable(claudePath);
     return claudePreflightPromise;
 }
 
-function summarizeStreamEvent(message) {
+function summarizeStreamEvent(message: any): string {
     if (message.type === 'result') return `result:${message.subtype ?? 'unknown'}`;
     if (message.type === 'system') return `system:${message.subtype ?? 'unknown'}`;
     if (message.type === 'assistant') return `assistant:${message.message?.content?.[0]?.type ?? 'content'}`;
@@ -164,9 +227,9 @@ function summarizeStreamEvent(message) {
     return message.type ?? 'unknown';
 }
 
-function createParentAgentRunner({ registry, mcpServers, queryFn } = {}) {
+function createParentAgentRunner({ registry, mcpServers, queryFn }: ParentRunnerFactoryInput): ParentRunner {
     const claudePath = process.env.CLAUDE_PATH ?? 'claude';
-    const queryImpl = queryFn ?? query;
+    const queryImpl: QueryFn = queryFn ?? (query as unknown as QueryFn);
 
     return async function runParentAgent({ prompt = '', source, jobName, chatId } = {}) {
         const startedAt = Date.now();
@@ -180,7 +243,7 @@ function createParentAgentRunner({ registry, mcpServers, queryFn } = {}) {
         const loadedSkills = availableSkills(SKILL_POLICY, { mcpServers });
         const options = createParentOptions({ registry, mcpServers });
         const finalPrompt = buildInvocationPrompt({ chatId, jobName, prompt, source });
-        let result = null;
+        let result: string | null = null;
         let firstEventLogged = false;
 
         console.log(
@@ -209,8 +272,8 @@ function createParentAgentRunner({ registry, mcpServers, queryFn } = {}) {
             }
         } catch (error) {
             console.error(
-                `[claude] parent run failed source=${source ?? 'unknown'} chatId=${chatId ?? 'n/a'} jobName=${jobName ?? 'n/a'} durationMs=${Date.now() - startedAt} firstEventSeen=${firstEventLogged} error=${error.message}`,
-                error.stack ?? '',
+                `[claude] parent run failed source=${source ?? 'unknown'} chatId=${chatId ?? 'n/a'} jobName=${jobName ?? 'n/a'} durationMs=${Date.now() - startedAt} firstEventSeen=${firstEventLogged} error=${getErrorMessage(error)}`,
+                getErrorStack(error),
             );
             throw error;
         }
@@ -233,4 +296,14 @@ export {
     createParentAgentRunner,
     createParentOptions,
     summarizeStreamEvent,
+};
+export type {
+    McpServers,
+    ParentAgentOptions,
+    ParentInvocationInput,
+    ParentInvocationResult,
+    ParentOptionsInput,
+    ParentRunner,
+    ParentRunnerFactoryInput,
+    QueryFn,
 };

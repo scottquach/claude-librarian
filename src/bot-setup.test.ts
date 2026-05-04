@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { isHandlerTimeoutError, setupBot } from './bot-setup.js';
+import { isHandlerTimeoutError, setupBot, type BotContext } from './bot-setup.js';
+
+type CatchHandler = (error: unknown, ctx: BotContext) => void;
+type BotHandler = (ctx: BotContext) => unknown;
 
 test('isHandlerTimeoutError recognizes Telegraf handler timeout errors', () => {
     assert.equal(
@@ -18,18 +21,23 @@ test('isHandlerTimeoutError recognizes Telegraf handler timeout errors', () => {
 });
 
 test('setupBot registers a bot.catch handler that logs timeout context', async () => {
-    const registrations = { catch: null, handlers: new Map(), start: null, help: null };
+    const registrations: {
+        catch: CatchHandler | null;
+        handlers: Map<unknown, BotHandler>;
+        start: BotHandler | null;
+        help: BotHandler | null;
+    } = { catch: null, handlers: new Map(), start: null, help: null };
     const telegramBot = {
-        catch(handler) {
+        catch(handler: CatchHandler) {
             registrations.catch = handler;
         },
-        on(filter, handler) {
+        on(filter: unknown, handler: BotHandler) {
             registrations.handlers.set(filter, handler);
         },
-        start(handler) {
+        start(handler: BotHandler) {
             registrations.start = handler;
         },
-        help(handler) {
+        help(handler: BotHandler) {
             registrations.help = handler;
         },
     };
@@ -45,18 +53,19 @@ test('setupBot registers a bot.catch handler that logs timeout context', async (
     assert.equal(typeof registrations.start, 'function');
     assert.equal(typeof registrations.help, 'function');
 
-    const calls = [];
+    const calls: string[] = [];
     const originalConsoleError = console.error;
     console.error = (...args) => calls.push(args.join(' '));
 
     try {
-        await registrations.catch(
+        assert.ok(registrations.catch);
+        registrations.catch(
             { name: 'TimeoutError', message: 'Promise timed out after 90000 milliseconds', stack: 'stacktrace' },
             {
                 chat: { id: 42 },
                 from: { id: 7 },
                 update: { update_id: 99 },
-            },
+            } as BotContext,
         );
     } finally {
         console.error = originalConsoleError;

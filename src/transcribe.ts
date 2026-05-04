@@ -1,13 +1,23 @@
 import { OpenAI, toFile } from 'openai';
+import type { BotContext } from './bot-setup.js';
 
-function createTranscriber({ apiKey } = {}) {
-  let openai;
+type TranscriberOptions = {
+  apiKey?: string;
+};
 
-  return async function transcribeVoice(ctx) {
+type TranscribeVoice = (ctx: BotContext) => Promise<string>;
+
+function createTranscriber({ apiKey }: TranscriberOptions = {}): TranscribeVoice {
+  let openai: OpenAI | undefined;
+
+  return async function transcribeVoice(ctx: BotContext): Promise<string> {
     if (!openai) {
       openai = new OpenAI({ apiKey: apiKey ?? process.env.OPENAI_API_KEY });
     }
-    const fileId = ctx.message.voice.file_id;
+    const fileId = ctx.message?.voice?.file_id;
+    if (!fileId) {
+      throw new Error('Voice message is missing a file id');
+    }
     const fileLink = await ctx.telegram.getFileLink(fileId);
 
     const response = await fetch(fileLink.href);
@@ -27,3 +37,4 @@ function createTranscriber({ apiKey } = {}) {
 }
 
 export { createTranscriber };
+export type { TranscriberOptions, TranscribeVoice };

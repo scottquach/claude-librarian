@@ -1,6 +1,8 @@
 import { parse as parseYaml } from 'yaml';
 
-function parseToolsFromFrontmatter(content) {
+type SkillPolicy = Record<string, string[]>;
+
+function parseToolsFromFrontmatter(content: string): string[] {
     const fmMatch = content.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
     if (!fmMatch) return [];
 
@@ -13,16 +15,16 @@ function parseToolsFromFrontmatter(content) {
     return frontmatter.tools.map((tool) => String(tool).trim()).filter(Boolean);
 }
 
-function unique(values) {
+function unique(values: string[]): string[] {
     return [...new Set(values.filter(Boolean))];
 }
 
-function parseMcpServerName(toolName) {
+function parseMcpServerName(toolName: string): string | null {
     const match = /^mcp__([^_]+)__/.exec(toolName);
     return match ? match[1] : null;
 }
 
-function skillNeedsUnavailableMcpTool(skillTools = [], availableMcpServers = []) {
+function skillNeedsUnavailableMcpTool(skillTools: string[] = [], availableMcpServers: string[] = []): boolean {
     const available = new Set(availableMcpServers);
     return skillTools.some((toolName) => {
         const serverName = parseMcpServerName(toolName);
@@ -42,7 +44,10 @@ function skillNeedsUnavailableMcpTool(skillTools = [], availableMcpServers = [])
  * @param {{ mcpServers?: Record<string, unknown> }} options
  * @returns {string[]}
  */
-function availableSkills(toolsBySkill = {}, { mcpServers = {} } = {}) {
+function availableSkills(
+    toolsBySkill: SkillPolicy = {},
+    { mcpServers = {} }: { mcpServers?: Record<string, unknown> } = {},
+): string[] {
     const availableMcpServers = Object.keys(mcpServers);
 
     return Object.keys(toolsBySkill).filter((skillName) => {
@@ -58,7 +63,11 @@ function availableSkills(toolsBySkill = {}, { mcpServers = {} } = {}) {
  * @param {Record<string, string[]>} toolsBySkill - Map of skill name → tool grants.
  * @param {{ baseTools?: string[] }} options
  */
-function toolsForSkills(skills = [], toolsBySkill = {}, { baseTools = [] } = {}) {
+function toolsForSkills(
+    skills: string[] = [],
+    toolsBySkill: SkillPolicy = {},
+    { baseTools = [] }: { baseTools?: string[] } = {},
+): string[] {
     const skillTools = skills.flatMap((skill) => toolsBySkill[skill] ?? []);
     return unique([
         ...baseTools,
@@ -68,6 +77,7 @@ function toolsForSkills(skills = [], toolsBySkill = {}, { baseTools = [] } = {})
 }
 
 export {
+    type SkillPolicy,
     availableSkills,
     parseToolsFromFrontmatter,
     toolsForSkills,

@@ -41,7 +41,7 @@ function makeAllDayIcs({ uid = 'allday-1', summary = 'All Day', dtstart = '20260
 }
 
 // Mock global fetch
-let fetchMock;
+let fetchMock: any;
 beforeEach(() => {
     fetchMock = mock.fn();
     global.fetch = fetchMock;
@@ -50,10 +50,10 @@ afterEach(() => {
     mock.restoreAll();
     if (originalBotTimezone === undefined) delete process.env.BOT_TIMEZONE;
     else process.env.BOT_TIMEZONE = originalBotTimezone;
-    delete global.fetch;
+    delete (globalThis as any).fetch;
 });
 
-function mockFetchResponse(body, status = 200) {
+function mockFetchResponse(body: string, status = 200) {
     return {
         ok: status >= 200 && status < 300,
         status,

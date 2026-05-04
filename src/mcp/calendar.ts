@@ -4,16 +4,42 @@ import { addDays, endOfDay, startOfDay } from 'date-fns';
 import ical from 'node-ical';
 import { z } from 'zod';
 
-function getCalendarTimezone() {
+type ParsedCalendar = Record<string, any>;
+
+type CalendarEvent = {
+    uid: string;
+    title: string;
+    start: string;
+    end: string;
+    allDay: boolean;
+    location: string;
+    description: string;
+    calendar: string;
+    status: string;
+};
+
+type CalendarFetchOptions = {
+    daysAhead?: number;
+    startDate?: string;
+    endDate?: string;
+    search?: string;
+};
+
+type CalendarFetchResult = {
+    events: CalendarEvent[];
+    warnings: string[];
+};
+
+function getCalendarTimezone(): string {
     return process.env.BOT_TIMEZONE ?? 'America/Chicago';
 }
 
-function createZonedDay(dateString, timeZone) {
+function createZonedDay(dateString: string, timeZone: string): Date {
     const [year, month, day] = dateString.split('-').map(Number);
     return TZDate.tz(timeZone, year, month - 1, day);
 }
 
-function getDefaultStartDate(now = new Date(), timeZone = getCalendarTimezone()) {
+function getDefaultStartDate(now = new Date(), timeZone = getCalendarTimezone()): Date {
     return startOfDay(TZDate.tz(timeZone, now.getTime()));
 }
 
@@ -21,7 +47,7 @@ function getDefaultStartDate(now = new Date(), timeZone = getCalendarTimezone())
  * Fetch and parse events from a single iCal URL.
  * Returns raw parsed calendar data keyed by UID.
  */
-async function fetchIcal(url, timeoutMs = 10000) {
+async function fetchIcal(url: string, timeoutMs = 10000): Promise<ParsedCalendar> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -39,7 +65,7 @@ async function fetchIcal(url, timeoutMs = 10000) {
 /**
  * Normalize a single event (or recurring instance) into a flat object.
  */
-function normalizeEvent(instance, calendarLabel) {
+function normalizeEvent(instance: any, calendarLabel: string): CalendarEvent {
     const timeZone = getCalendarTimezone();
     const startRaw = instance.start instanceof Date ? instance.start : new Date(instance.start);
     const endRaw =
@@ -48,7 +74,7 @@ function normalizeEvent(instance, calendarLabel) {
             : instance.start instanceof Date
               ? instance.start
               : new Date(instance.start);
-    const isAllDay = instance.isFullDay ?? instance.event?.datetype === 'date' ?? false;
+    const isAllDay = Boolean(instance.isFullDay ?? (instance.event?.datetype === 'date'));
     const start = TZDate.tz(timeZone, startRaw.getTime());
     const end = TZDate.tz(timeZone, endRaw.getTime());
 
@@ -69,12 +95,12 @@ function normalizeEvent(instance, calendarLabel) {
  * Extract events from parsed iCal data within a date range.
  * Handles both single and recurring events via expandRecurringEvent.
  */
-function extractEvents(parsed, from, to, calendarLabel) {
-    const events = [];
+function extractEvents(parsed: ParsedCalendar, from: Date, to: Date, calendarLabel: string): CalendarEvent[] {
+    const events: CalendarEvent[] = [];
     for (const [, entry] of Object.entries(parsed)) {
         if (entry.type !== 'VEVENT') continue;
 
-        const instances = ical.expandRecurringEvent(entry, {
+        const instances = ical.expandRecurringEvent(entry as any, {
             from,
             to,
             expandOngoing: true,
@@ -99,7 +125,7 @@ function extractEvents(parsed, from, to, calendarLabel) {
  * @param {string} [options.search] - Case-insensitive text filter on title/description
  * @returns {Promise<{events: object[], warnings: string[]}>}
  */
-async function fetchCalendarEvents(urls, labels, options = {}) {
+async function fetchCalendarEvents(urls: string[], labels: string[], options: CalendarFetchOptions = {}): Promise<CalendarFetchResult> {
     const { daysAhead = 14, startDate, endDate, search } = options;
     const timeZone = getCalendarTimezone();
 
@@ -110,8 +136,8 @@ async function fetchCalendarEvents(urls, labels, options = {}) {
 
     const results = await Promise.allSettled(urls.map((url) => fetchIcal(url)));
 
-    const allEvents = [];
-    const warnings = [];
+    const allEvents: CalendarEvent[] = [];
+    const warnings: string[] = [];
 
     for (let i = 0; i < results.length; i++) {
         const result = results[i];
@@ -120,13 +146,14 @@ async function fetchCalendarEvents(urls, labels, options = {}) {
             const events = extractEvents(result.value, from, to, label);
             allEvents.push(...events);
         } else {
-            warnings.push(`Failed to fetch "${label}": ${result.reason?.message || 'Unknown error'}`);
+            const reason = result.reason instanceof Error ? result.reason.message : 'Unknown error';
+            warnings.push(`Failed to fetch "${label}": ${reason}`);
         }
     }
 
     // Deduplicate by UID (keep first occurrence)
-    const seen = new Set();
-    const deduped = [];
+    const seen = new Set<string>();
+    const deduped: CalendarEvent[] = [];
     for (const event of allEvents) {
         const key = event.uid + '|' + event.start;
         if (!key || seen.has(key)) continue;
@@ -135,7 +162,7 @@ async function fetchCalendarEvents(urls, labels, options = {}) {
     }
 
     // Sort by start time
-    deduped.sort((a, b) => new Date(a.start) - new Date(b.start));
+    deduped.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 
     // Apply search filter
     let filtered = deduped;
@@ -154,7 +181,7 @@ async function fetchCalendarEvents(urls, labels, options = {}) {
  * @param {string[]} labels - Human-readable labels for each URL
  * @returns {McpSdkServerConfigWithInstance}
  */
-function createCalendarServer(urls, labels) {
+function createCalendarServer(urls: string[], labels: string[]) {
     return createSdkMcpServer({
         name: 'calendar',
         version: '1.0.0',
@@ -207,3 +234,4 @@ export {
     extractEvents,
     normalizeEvent,
 };
+export type { CalendarEvent, CalendarFetchOptions, CalendarFetchResult, ParsedCalendar };

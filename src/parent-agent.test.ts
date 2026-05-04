@@ -11,11 +11,12 @@ import {
     createParentOptions,
     summarizeStreamEvent,
 } from './parent-agent.js';
+import type { AgentRegistry } from './agent-registry.js';
 import { availableSkills } from './tool-policy.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
-function makeRegistry() {
+function makeRegistry(): AgentRegistry {
     return {
         directories: ['/vault', '/shared'],
         parent: {
@@ -76,12 +77,12 @@ test('createParentOptions uses native parent skills and disables subagent delega
             resolve(__dirname, '../plugins/parent-skills'),
         ],
     );
-    assert.match(options.systemPrompt, /Parent instructions\./);
-    assert.doesNotMatch(options.systemPrompt, /Loaded Skill: journal/);
+    assert.match(options.systemPrompt!, /Parent instructions\./);
+    assert.doesNotMatch(options.systemPrompt!, /Loaded Skill: journal/);
 });
 
 test('createParentAgentRunner sends prompt through native-skilled parent without delegation', async () => {
-    const calls = [];
+    const calls: any[] = [];
     const queryFn = async function* ({ prompt, options }) {
         calls.push({ prompt, options });
         yield {
@@ -139,7 +140,7 @@ test('createParentAgentRunner logs lifecycle timing around the query stream', as
         queryFn,
     });
 
-    const calls = [];
+    const calls: string[] = [];
     const originalConsoleLog = console.log;
     console.log = (...args) => calls.push(args.join(' '));
 
@@ -188,9 +189,9 @@ test('parent skill plugin exposes every native skill with matching frontmatter',
         const body = readFileSync(skillPath, 'utf8');
         const frontmatter = body.match(/^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/);
         assert.ok(frontmatter, `${skill} should have YAML frontmatter`);
-        assert.match(frontmatter[1], new RegExp(`^name: ${skill}$`, 'm'), `${skill} name should match directory`);
-        assert.match(frontmatter[1], /^description: .+/m, `${skill} should have a description`);
-        assert.match(frontmatter[1], /^tools:\n/m, `${skill} should declare a tools: list`);
+        assert.match(frontmatter[1]!, new RegExp(`^name: ${skill}$`, 'm'), `${skill} name should match directory`);
+        assert.match(frontmatter[1]!, /^description: .+/m, `${skill} should have a description`);
+        assert.match(frontmatter[1]!, /^tools:\n/m, `${skill} should declare a tools: list`);
         assert.ok(
             Array.isArray(SKILL_POLICY[skill]) && SKILL_POLICY[skill].length > 0,
             `${skill} tools list should be non-empty`,

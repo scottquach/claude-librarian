@@ -2,9 +2,61 @@ import nodeCron from 'node-cron';
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseFrontmatter } from './bot-config-loader.js';
+import type { ConversationStateStore } from './conversation-state.js';
 import { markdownToTelegramHtml } from './telegram-format.js';
 
-function parseJobConfig(fileContent) {
+type JobConfig = {
+    name: string;
+    cron: string;
+    telegram: boolean;
+    prompt: string;
+};
+
+type RunParentAgentInput = {
+    chatId?: string;
+    jobName?: string;
+    prompt?: string;
+    source?: string;
+};
+
+type RunParentAgentResult = {
+    output: string;
+};
+
+type RunParentAgent = (input: RunParentAgentInput) => Promise<RunParentAgentResult>;
+
+type ConversationStoreLike = {
+    appendTurn: ConversationStateStore['appendTurn'] | ((input: Parameters<ConversationStateStore['appendTurn']>[0]) => unknown);
+    buildPrompt: ConversationStateStore['buildPrompt'];
+};
+
+type CronLike = {
+    schedule: (expression: string, callback: () => Promise<void>, options?: { timezone?: string }) => unknown;
+};
+
+type TelegramBotLike = {
+    telegram: {
+        sendMessage: (chatId: string, text: string, options?: { parse_mode: 'HTML' }) => Promise<unknown>;
+    };
+};
+
+type JobLoaderOptions = {
+    readdir?: (directory: string) => string[];
+    readFile?: (path: string) => string;
+};
+
+type ScheduleJobsOptions = JobLoaderOptions & {
+    cron?: CronLike;
+    defaultChatId?: string;
+    runParentAgent?: RunParentAgent;
+    conversationStore?: ConversationStoreLike | null;
+};
+
+function getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+}
+
+function parseJobConfig(fileContent: string): JobConfig {
     const { frontmatter, body } = parseFrontmatter(fileContent);
 
     if (!frontmatter.name) throw new Error('Job config missing required field: name');
@@ -21,7 +73,7 @@ function parseJobConfig(fileContent) {
     };
 }
 
-function loadJobConfigs(jobsDir, opts = {}) {
+function loadJobConfigs(jobsDir: string, opts: JobLoaderOptions = {}): JobConfig[] {
     const readdir = opts.readdir ?? ((d) => readdirSync(d));
     const readFile = opts.readFile ?? ((p) => readFileSync(p, 'utf8'));
 
@@ -34,7 +86,7 @@ function loadJobConfigs(jobsDir, opts = {}) {
     });
 }
 
-function scheduleJobs(bot, jobsDir, opts = {}) {
+function scheduleJobs(bot: TelegramBotLike, jobsDir: string, opts: ScheduleJobsOptions = {}): void {
     const cron = opts.cron ?? nodeCron;
     const defaultChatId = opts.defaultChatId ?? process.env.DEFAULT_CHAT_ID;
     const runParentAgent = opts.runParentAgent;
@@ -76,14 +128,14 @@ function scheduleJobs(bot, jobsDir, opts = {}) {
                     if (job.telegram && defaultChatId && !shouldSkip) {
                         await bot.telegram
                             .sendMessage(defaultChatId, markdownToTelegramHtml(output), { parse_mode: 'HTML' })
-                            .catch((err) => console.error(`[job] telegram send failed: ${err.message}`));
+                            .catch((err) => console.error(`[job] telegram send failed: ${getErrorMessage(err)}`));
                     }
                 } catch (error) {
-                    console.error(`[job] failed: ${job.name} — ${error.message}`);
+                    console.error(`[job] failed: ${job.name} — ${getErrorMessage(error)}`);
                     if (job.telegram && defaultChatId) {
                         await bot.telegram
-                            .sendMessage(defaultChatId, `Job "${job.name}" failed: ${error.message}`)
-                            .catch((err) => console.error(`[job] telegram send failed: ${err.message}`));
+                            .sendMessage(defaultChatId, `Job "${job.name}" failed: ${getErrorMessage(error)}`)
+                            .catch((err) => console.error(`[job] telegram send failed: ${getErrorMessage(err)}`));
                     }
                 }
             },
@@ -95,3 +147,4 @@ function scheduleJobs(bot, jobsDir, opts = {}) {
 }
 
 export { parseJobConfig, loadJobConfigs, scheduleJobs };
+export type { ConversationStoreLike, CronLike, JobConfig, JobLoaderOptions, RunParentAgent, RunParentAgentInput, RunParentAgentResult, ScheduleJobsOptions, TelegramBotLike };
