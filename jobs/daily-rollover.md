@@ -9,7 +9,7 @@ Review the current weekly note.
 1. Find today's `## YYYY-MM-DD` section and collect all unchecked tasks from today.
 2. Find tomorrow's `## YYYY-MM-DD` section and collect any unchecked tasks already scheduled there.
 3. Review the `This week` section and identify unchecked tasks that are not already scheduled under a day header later this week.
-4. If the `get_calendar_events` tool is available, check calendar events for the next 3 days starting tomorrow. Use that schedule to judge how much space tomorrow realistically has and whether any `This week` task would be especially useful to complete before an upcoming event.
+4. If calendar event lookup tools are available, use the `calendar` skill to check calendar events for the next 3 days starting tomorrow. Prefer concrete `YYYY-MM-DD` dates from the context line. Use that schedule to judge how much space tomorrow realistically has and whether any `This week` task would be especially useful to complete before an upcoming event.
 5. Before proposing anything from `This week`, estimate tomorrow's task load after rollover:
    - start with unchecked tasks already under tomorrow
    - add all unchecked tasks carried over from today

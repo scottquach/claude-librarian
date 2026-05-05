@@ -39,6 +39,17 @@ function createZonedDay(dateString: string, timeZone: string): Date {
     return TZDate.tz(timeZone, year, month - 1, day);
 }
 
+function parseDateInput(dateString: string, timeZone: string, now = new Date()): Date {
+    const normalized = dateString.trim().toLowerCase();
+    const today = startOfDay(TZDate.tz(timeZone, now.getTime()));
+
+    if (normalized === 'today') return today;
+    if (normalized === 'tomorrow') return addDays(today, 1);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) return createZonedDay(normalized, timeZone);
+
+    throw new Error(`Invalid calendar date: "${dateString}". Use YYYY-MM-DD, today, or tomorrow.`);
+}
+
 function getDefaultStartDate(now = new Date(), timeZone = getCalendarTimezone()): Date {
     return startOfDay(TZDate.tz(timeZone, now.getTime()));
 }
@@ -130,9 +141,9 @@ async function fetchCalendarEvents(urls: string[], labels: string[], options: Ca
     const timeZone = getCalendarTimezone();
 
     const from = startDate
-        ? startOfDay(createZonedDay(startDate, timeZone))
+        ? startOfDay(parseDateInput(startDate, timeZone))
         : getDefaultStartDate(new Date(), timeZone);
-    const to = endDate ? endOfDay(createZonedDay(endDate, timeZone)) : addDays(from, daysAhead);
+    const to = endDate ? endOfDay(parseDateInput(endDate, timeZone)) : addDays(from, daysAhead);
 
     const results = await Promise.allSettled(urls.map((url) => fetchIcal(url)));
 
@@ -194,11 +205,11 @@ function createCalendarServer(urls: string[], labels: string[]) {
                     start_date: z
                         .string()
                         .optional()
-                        .describe('ISO date (YYYY-MM-DD) for range start. Defaults to today.'),
+                        .describe('Date for range start: YYYY-MM-DD, today, or tomorrow. Defaults to today.'),
                     end_date: z
                         .string()
                         .optional()
-                        .describe('ISO date (YYYY-MM-DD) for range end. Overrides days_ahead if provided.'),
+                        .describe('Date for range end: YYYY-MM-DD, today, or tomorrow. Overrides days_ahead if provided.'),
                     search: z
                         .string()
                         .optional()

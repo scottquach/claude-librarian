@@ -47,6 +47,7 @@ beforeEach(() => {
     global.fetch = fetchMock;
 });
 afterEach(() => {
+    mock.timers.reset();
     mock.restoreAll();
     if (originalBotTimezone === undefined) delete process.env.BOT_TIMEZONE;
     else process.env.BOT_TIMEZONE = originalBotTimezone;
@@ -212,6 +213,49 @@ describe('fetchCalendarEvents', () => {
         assert.equal(warnings.length, 0);
         assert.equal(events.length, 1);
         assert.equal(events[0].title, 'Late Tonight Local');
+    });
+
+    it('accepts today as an explicit date range', async () => {
+        process.env.BOT_TIMEZONE = 'America/Chicago';
+        mock.timers.enable({ apis: ['Date'], now: new Date('2026-04-05T18:00:00.000Z') });
+
+        const ics = makeIcs({
+            summary: 'Afternoon Event',
+            dtstart: '20260405T200000Z',
+            dtend: '20260405T210000Z',
+        });
+        fetchMock.mock.mockImplementation(async () => mockFetchResponse(ics));
+
+        const { events, warnings } = await fetchCalendarEvents(
+            ['https://example.com/cal.ics'],
+            ['Test'],
+            { startDate: 'today', endDate: 'today' },
+        );
+
+        assert.equal(warnings.length, 0);
+        assert.equal(events.length, 1);
+        assert.equal(events[0].title, 'Afternoon Event');
+    });
+
+    it('accepts tomorrow as an explicit date range', async () => {
+        process.env.BOT_TIMEZONE = 'America/Chicago';
+        mock.timers.enable({ apis: ['Date'], now: new Date('2026-04-05T18:00:00.000Z') });
+
+        const ics = makeIcs({
+            summary: 'Tomorrow Event',
+            dtstart: '20260406T150000Z',
+            dtend: '20260406T160000Z',
+        });
+        fetchMock.mock.mockImplementation(async () => mockFetchResponse(ics));
+
+        const { events } = await fetchCalendarEvents(
+            ['https://example.com/cal.ics'],
+            ['Test'],
+            { startDate: 'tomorrow', endDate: 'tomorrow' },
+        );
+
+        assert.equal(events.length, 1);
+        assert.equal(events[0].title, 'Tomorrow Event');
     });
 
     it('sorts events by start time', async () => {
