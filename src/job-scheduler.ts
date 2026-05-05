@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseFrontmatter } from './bot-config-loader.js';
 import type { ConversationStateStore } from './conversation-state.js';
+import { isSkipOutput } from './skip-output.js';
 import { markdownToTelegramHtml } from './telegram-format.js';
 
 type JobConfig = {
@@ -115,7 +116,7 @@ function scheduleJobs(bot: TelegramBotLike, jobsDir: string, opts: ScheduleJobsO
                         prompt: promptWithContext,
                         source: 'job',
                     });
-                    const shouldSkip = output.trimStart().startsWith('[SKIP]');
+                    const shouldSkip = isSkipOutput(output);
                     console.log(`[job] completed: ${job.name} ${job.telegram}${shouldSkip ? ' (skipped)' : ''}`);
                     if (conversationStore && !shouldSkip) {
                         conversationStore.appendTurn({

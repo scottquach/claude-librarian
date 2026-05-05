@@ -190,7 +190,7 @@ test('scheduleJobs does not send to Telegram when telegram is false', async () =
   assert.equal(fakeBot.sent.length, 0);
 });
 
-test('scheduleJobs does not send to Telegram when output starts with [SKIP]', async () => {
+test('scheduleJobs does not send to Telegram when output contains an exact [SKIP] line', async () => {
   const files: Record<string, string> = {
     'skip-job.md': `---\nname: skip-job\ncron: "0 9 * * *"\ntelegram: true\n---\n\nDo something.\n`,
   };
@@ -201,7 +201,7 @@ test('scheduleJobs does not send to Telegram when output starts with [SKIP]', as
     cron: fakeCron,
     readdir: () => Object.keys(files),
     readFile: (p) => files[basename(p)] ?? '',
-    runParentAgent: async () => ({ output: '[SKIP]' }),
+    runParentAgent: async () => ({ output: 'Checked the context.\n[SKIP]\nNo message needed.' }),
     defaultChatId: '42',
   });
 
@@ -303,4 +303,24 @@ test('scheduleJobs does not append skipped output to conversation store', async 
   await fakeCron.scheduled[0].callback();
 
   assert.equal(appended, false);
+});
+
+test('scheduleJobs does not treat inline [SKIP] mentions as skipped output', async () => {
+  const files: Record<string, string> = {
+    'notify-job.md': `---\nname: notify-job\ncron: "0 9 * * *"\ntelegram: true\n---\n\nDo something.\n`,
+  };
+  const fakeCron = makeFakeCron();
+  const fakeBot = makeFakeBot('42');
+
+  scheduleJobs(fakeBot, '/fake/jobs', {
+    cron: fakeCron,
+    readdir: () => Object.keys(files),
+    readFile: (p) => files[basename(p)] ?? '',
+    runParentAgent: async () => ({ output: 'This mentions [SKIP] but is a real message.' }),
+    defaultChatId: '42',
+  });
+
+  await fakeCron.scheduled[0].callback();
+
+  assert.equal(fakeBot.sent.length, 1);
 });

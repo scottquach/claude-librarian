@@ -2,6 +2,7 @@ import nodeCron from 'node-cron';
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { CronLike, RunParentAgent, TelegramBotLike } from './job-scheduler.js';
+import { isSkipOutput } from './skip-output.js';
 import { markdownToTelegramHtml } from './telegram-format.js';
 
 type ScheduleMode = 'llm' | 'message';
@@ -152,7 +153,7 @@ function createDynamicScheduler(deps: DynamicSchedulerDeps): DynamicScheduler {
                         prompt: record.prompt ?? '',
                         source: 'scheduler',
                     });
-                    const shouldSkip = output.trimStart().startsWith('[SKIP]');
+                    const shouldSkip = isSkipOutput(output);
                     if (chatId && !shouldSkip) {
                         await deps.bot.telegram
                             .sendMessage(chatId, markdownToTelegramHtml(output), { parse_mode: 'HTML' })
