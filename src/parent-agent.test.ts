@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -9,6 +10,7 @@ import {
     buildInvocationPrompt,
     createParentAgentRunner,
     createParentOptions,
+    formatExecutionLogEvent,
     summarizeStreamEvent,
 } from './parent-agent.js';
 import type { AgentRegistry } from './agent-registry.js';
@@ -26,6 +28,10 @@ function makeRegistry(): AgentRegistry {
             systemPrompt: 'Parent instructions.',
         },
     };
+}
+
+function makeExecutionLogPath(): string {
+    return resolve(mkdtempSync(resolve(tmpdir(), 'claude-librarian-test-')), 'execution.log');
 }
 
 test('buildInvocationPrompt includes source metadata', () => {
@@ -96,6 +102,7 @@ test('createParentAgentRunner sends prompt through native-skilled parent without
         registry: makeRegistry(),
         mcpServers: { calendar: { type: 'stdio' } },
         queryFn,
+        executionLogPath: makeExecutionLogPath(),
     });
 
     const result = await runParentAgent({
@@ -138,6 +145,7 @@ test('createParentAgentRunner logs lifecycle timing around the query stream', as
         registry: makeRegistry(),
         mcpServers: { calendar: { type: 'stdio' } },
         queryFn,
+        executionLogPath: makeExecutionLogPath(),
     });
 
     const calls: string[] = [];
@@ -159,6 +167,66 @@ test('createParentAgentRunner logs lifecycle timing around the query stream', as
     assert.ok(calls.some((line) => line.includes('[claude] query started source=telegram chatId=42')));
     assert.ok(calls.some((line) => line.includes('[claude] first stream event afterMs=')));
     assert.ok(calls.some((line) => line.includes('[claude] parent run completed source=telegram chatId=42')));
+});
+
+test('createParentAgentRunner appends thoughts and stream details to an execution log file', async () => {
+    const logPath = makeExecutionLogPath();
+    const queryFn = async function* () {
+        yield {
+            type: 'assistant',
+            message: {
+                content: [
+                    { type: 'thinking', thinking: 'Need to inspect the weekly note.' },
+                    { type: 'tool_use', name: 'Read', input: { file_path: '/vault/week.md' } },
+                ],
+            },
+        };
+        yield {
+            type: 'user',
+            message: {
+                content: [{ type: 'tool_result', content: 'Existing note contents.' }],
+            },
+        };
+        yield {
+            type: 'assistant',
+            message: {
+                content: [{ type: 'text', text: 'Logged.' }],
+            },
+        };
+        yield {
+            type: 'result',
+            subtype: 'success',
+            result: 'Logged.',
+            duration_ms: 1234,
+            total_cost_usd: 0.0123,
+        };
+    };
+
+    const runParentAgent = createParentAgentRunner({
+        registry: makeRegistry(),
+        mcpServers: { calendar: { type: 'stdio' } },
+        queryFn,
+        executionLogPath: logPath,
+    });
+
+    try {
+        await runParentAgent({
+            chatId: '42',
+            prompt: 'log that I felt focused today',
+            source: 'telegram',
+        });
+
+        const log = readFileSync(logPath, 'utf8');
+        assert.match(log, /parent run started source=telegram chatId=42/);
+        assert.match(log, /assistant thinking:\nNeed to inspect the weekly note\./);
+        assert.match(log, /tool use: Read\(\{"file_path":"\/vault\/week\.md"\}\)/);
+        assert.match(log, /tool result:\nExisting note contents\./);
+        assert.match(log, /assistant text:\nLogged\./);
+        assert.match(log, /result:success costUsd=0\.0123 durationMs=1234/);
+        assert.match(log, /parent run completed source=telegram chatId=42/);
+    } finally {
+        rmSync(dirname(logPath), { recursive: true, force: true });
+    }
 });
 
 test('createParentOptions omits skills whose MCP servers are unavailable', () => {
@@ -206,6 +274,16 @@ test('summarizeStreamEvent formats common stream events for logging', () => {
         'assistant:tool_use',
     );
     assert.equal(summarizeStreamEvent({ type: 'result', subtype: 'success' }), 'result:success');
+});
+
+test('formatExecutionLogEvent formats thinking blocks for file logs', () => {
+    assert.deepEqual(
+        formatExecutionLogEvent({
+            type: 'assistant',
+            message: { content: [{ type: 'thinking', thinking: 'Check the task list.\nThen write.' }] },
+        }),
+        ['assistant thinking:\nCheck the task list.\nThen write.'],
+    );
 });
 
 test('calendar skill and parent prompt allow calendar writes when tools are available', () => {
