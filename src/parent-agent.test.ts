@@ -126,6 +126,38 @@ test('createParentAgentRunner sends prompt through native-skilled parent without
     assert.equal(result.output, 'Tomorrow looks busy.');
 });
 
+test('createParentAgentRunner creates fresh SDK MCP servers for each invocation', async () => {
+    const calls: any[] = [];
+    let created = 0;
+    const queryFn = async function* ({ options }) {
+        calls.push(options.mcpServers.calendar);
+        yield {
+            type: 'result',
+            subtype: 'success',
+            result: 'Done.',
+        };
+    };
+
+    const runParentAgent = createParentAgentRunner({
+        registry: makeRegistry(),
+        mcpServers: {
+            calendar: () => ({
+                type: 'sdk',
+                name: 'calendar',
+                instance: { id: ++created },
+            }),
+        },
+        queryFn,
+        executionLogPath: makeExecutionLogPath(),
+    });
+
+    await runParentAgent({ prompt: 'first', source: 'test' });
+    await runParentAgent({ prompt: 'second', source: 'test' });
+
+    assert.equal(created, 2);
+    assert.notEqual(calls[0].instance, calls[1].instance);
+});
+
 test('createParentAgentRunner logs lifecycle timing around the query stream', async () => {
     const queryFn = async function* () {
         yield {

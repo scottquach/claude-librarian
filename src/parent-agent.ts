@@ -16,7 +16,10 @@ const parentSkillsPluginPath = resolve(__dirname, '../plugins/parent-skills');
  * tool grants from SKILL.md frontmatter.  Returns a map of skill name →
  * allowed tools, sorted alphabetically so the order is deterministic.
  */
-type McpServers = Record<string, unknown>;
+type McpServerConfig = unknown;
+type McpServerFactory = () => McpServerConfig;
+type McpServerEntry = McpServerConfig | McpServerFactory;
+type McpServers = Record<string, McpServerEntry>;
 
 type ParentInvocationInput = {
     prompt?: string;
@@ -240,9 +243,20 @@ function buildInvocationPrompt({ prompt = '', source = 'unknown', jobName, chatI
     return lines.join('\n');
 }
 
+function resolveMcpServers(mcpServers?: McpServers): Record<string, McpServerConfig> | undefined {
+    if (!mcpServers) return undefined;
+
+    const resolved: Record<string, McpServerConfig> = {};
+    for (const [name, server] of Object.entries(mcpServers)) {
+        resolved[name] = typeof server === 'function' ? server() : server;
+    }
+    return resolved;
+}
+
 function createParentOptions({ registry, mcpServers }: ParentOptionsInput): ParentAgentOptions {
+    const resolvedMcpServers = resolveMcpServers(mcpServers);
     const parent = registry.parent;
-    const activeSkills = availableSkills(SKILL_POLICY, { mcpServers });
+    const activeSkills = availableSkills(SKILL_POLICY, { mcpServers: resolvedMcpServers });
     const allowedTools = toolsForSkills(activeSkills, SKILL_POLICY);
     const builtInTools = allowedTools.filter((toolName) => !toolName.startsWith('mcp__'));
 
@@ -265,7 +279,7 @@ function createParentOptions({ registry, mcpServers }: ParentOptionsInput): Pare
         allowDangerouslySkipPermissions: false,
         disallowedTools: ['Agent'],
         includePartialMessages: true,
-        mcpServers: mcpServers || undefined,
+        mcpServers: resolvedMcpServers,
         model: parent.model,
         permissionMode: 'acceptEdits',
         plugins: [
@@ -326,8 +340,8 @@ function createParentAgentRunner({ registry, mcpServers, queryFn, executionLogPa
         await ensureClaudeExecutableCheck(claudePath);
         console.log(`[claude] preflight complete durationMs=${Date.now() - startedAt}`);
 
-        const loadedSkills = availableSkills(SKILL_POLICY, { mcpServers });
         const options = createParentOptions({ registry, mcpServers });
+        const loadedSkills = availableSkills(SKILL_POLICY, { mcpServers: options.mcpServers });
         const finalPrompt = buildInvocationPrompt({ chatId, jobName, prompt, source });
         let result: string | null = null;
         let firstEventLogged = false;
